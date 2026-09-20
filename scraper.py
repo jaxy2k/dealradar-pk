@@ -22,8 +22,7 @@ log = logging.getLogger("scraper")
 
 BASE = pathlib.Path(__file__).parent
 DATA = BASE / "data"
-if not DATA.is_dir():
-    DATA = BASE
+DATA.mkdir(exist_ok=True)
 OUT = DATA / "live_deals.json"
 STATIC = DATA / "deals.json"
 
@@ -721,4 +720,28 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    try:
+        run()
+    except Exception as e:
+        log.error(f"Scraper crashed: {e}")
+        # Write a minimal live_deals.json so the pipeline doesn't fully break
+        fallback = {
+            "meta": {
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "server_time": datetime.now(timezone.utc).isoformat(),
+                "now": datetime.now(timezone(timedelta(hours=5))).isoformat(),
+                "source": "fallback",
+                "banks_scraped": [],
+                "cities_scraped": [],
+                "total_deals": 0,
+                "error": str(e),
+            },
+            "brands": [],
+            "deals": [],
+        }
+        try:
+            OUT.write_text(json.dumps(fallback, indent=2), encoding="utf-8")
+            log.info("Wrote fallback live_deals.json")
+        except Exception:
+            pass
+        sys.exit(0)  # Don't fail the workflow — health check will flag it

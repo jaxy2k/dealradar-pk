@@ -93062,9 +93062,9 @@ function dealCard(d) {
   // Logo: real image if available, else initials
   const mi = d.merchant_info || {};
   const logoHtml = mi.logo
-    ? `<div class="logo-badge" style="background:#fff"><img src="${esc(mi.logo)}" alt="${esc(b.name)}" class="logo-img" loading="lazy"></div>`
+    ? `<div class="logo-badge" style="background:#fff"><img src="${esc(mi.logo)}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="this.parentElement.innerHTML='${initials}';this.parentElement.style.background='${b.color}'"></div>`
     : b.logo
-    ? `<div class="logo-badge" style="background:${b.color}"><img src="${b.logo}" alt="${b.name}" class="logo-img" loading="lazy"></div>`
+    ? `<div class="logo-badge" style="background:${b.color}"><img src="${b.logo}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="this.parentElement.innerHTML='${initials}'"></div>`
     : `<div class="logo-badge" style="background:${b.color}">${initials}</div>`;
   const ratingEl = mi.rating ? `<span class="pill mrating">★ ${Number(mi.rating).toFixed(1)}</span>` : "";
 
@@ -93144,7 +93144,7 @@ function renderFeedContent(list) {
     if (deals.length >= 2 && state.tab !== "evergreen") {
       const b = brandOf(brandId);
       const groupLogo = b.logo
-        ? `<div class="logo-badge sm" style="background:${b.color}"><img src="${b.logo}" alt="${b.name}" class="logo-img" loading="lazy"></div>`
+        ? `<div class="logo-badge sm" style="background:${b.color}"><img src="${b.logo}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="this.remove()"></div>`
         : `<div class="logo-badge sm" style="background:${b.color}">${b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase()}</div>`;
       html += `<div class="merchant-group" data-brand="${brandId}">
         <div class="merchant-header">
@@ -93338,9 +93338,9 @@ function openDeal(d) {
 
   const mi2 = d.merchant_info || {};
   const logoHero = mi2.logo
-    ? `<div class="logo-badge" style="background:#fff;width:52px;height:52px"><img src="${esc(mi2.logo)}" alt="${esc(b.name)}" class="logo-img"></div>`
+    ? `<div class="logo-badge" style="background:#fff;width:52px;height:52px"><img src="${esc(mi2.logo)}" alt="${esc(b.name)}" class="logo-img" onerror="this.parentElement.innerHTML='${initials}';this.parentElement.style.background='${b.color}'"></div>`
     : b.logo
-    ? `<div class="logo-badge" style="background:${b.color};width:52px;height:52px"><img src="${b.logo}" alt="${b.name}" class="logo-img"></div>`
+    ? `<div class="logo-badge" style="background:${b.color};width:52px;height:52px"><img src="${b.logo}" alt="${esc(b.name)}" class="logo-img" onerror="this.parentElement.innerHTML='${initials}'"></div>`
     : `<div class="logo-badge" style="background:${b.color};width:52px;height:52px;font-size:16px">${initials}</div>`;
   const coverHero = mi2.cover ? `<div class="sheet-cover"><img src="${esc(mi2.cover)}" alt="${esc(b.name)}" loading="lazy"></div>` : "";
   const heroSub = `<div class="hero-type">${b.brand_type} · ${d.category}${mi2.rating ? ` · ★ ${Number(mi2.rating).toFixed(1)}` : ""}</div>`;
