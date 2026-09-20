@@ -13,8 +13,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("scraper")
 
 BASE = Path(__file__).parent
-OUT = BASE / "data" / "live_deals.json"
-STATIC = BASE / "data" / "deals.json"
+DATA = BASE / "data"
+if not DATA.is_dir():
+    DATA = BASE
+OUT = DATA / "live_deals.json"
+STATIC = DATA / "deals.json"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
