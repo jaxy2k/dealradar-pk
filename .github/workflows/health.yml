@@ -1,8 +1,8 @@
-name: Health Check
+name: "Health Check"
 
-on:
+"on":
   schedule:
-    - cron: "30 */3 * * *"   # every 3 hours, offset from scrape
+    - cron: "30 */3 * * *"
   workflow_dispatch:
 
 permissions:

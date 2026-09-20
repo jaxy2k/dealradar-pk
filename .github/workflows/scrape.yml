@@ -1,9 +1,9 @@
-name: Scrape Deals
+name: "Scrape Deals"
 
-on:
+"on":
   schedule:
-    - cron: "0 */2 * * *"  # Every 2 hours
-  workflow_dispatch:  # Manual trigger
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,7 +18,9 @@ jobs:
         run: pip install requests
 
       - name: Run scraper
-        run: python3 scraper.py
+        run: |
+          mkdir -p data
+          python3 scraper.py
         timeout-minutes: 10
 
       - name: Copy to root for GitHub Pages
