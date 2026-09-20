@@ -1,0 +1,21 @@
+{
+  "name": "DealRadar PK",
+  "short_name": "DealRadar",
+  "description": "Never miss a discount in Pakistan. Track limited-time deals from Easypaisa, JazzCash, HBL, Daraz, Foodpanda & more.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08090d",
+  "theme_color": "#08090d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logos/easypaisa.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "finance", "lifestyle"],
+  "lang": "en",
+  "dir": "ltr"
+}

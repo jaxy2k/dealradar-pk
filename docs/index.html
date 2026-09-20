@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="description" content="Never miss a discount in Pakistan. Track limited-time deals from Easypaisa, JazzCash, HBL, Daraz, Foodpanda & more.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="logos/easypaisa.png">
+<title>DealRadar PK — never miss a discount</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <button id="backBtn" class="back-btn" aria-label="Go back">←</button>
+  <div class="brand">
+    <span class="logo">🛰️</span>
+    <div>
+      <h1>DealRadar<span>PK</span></h1>
+      <p class="tag" id="headerTag">Trending discounts, before they expire</p>
+    </div>
+  </div>
+  <button id="alertBell" class="bell" title="Alerts">🔔<span id="bellCount" class="badge">0</span></button>
+  <button id="langBtn" class="lang-btn" title="Switch language">اردو</button>
+</header>
+
+<div class="searchbar">
+  <input id="q" type="search" placeholder="Search deals, brands, cities…" autocomplete="off">
+  <button id="walletBtn" class="wallet-btn" title="My wallets & cards">👛</button>
+</div>
+
+<nav class="chips scroll" id="cityChips"></nav>
+<nav class="chips scroll" id="catChips"></nav>
+
+<div id="walletPanel" class="wallet-panel hidden"></div>
+<section id="banner"></section>
+<section id="savingsBar"></section>
+
+<main id="feed" class="feed" aria-live="polite"></main>
+
+<nav class="tabbar" id="tabbar">
+  <button class="tab active" data-tab="trending"><span>🔥</span>Trending</button>
+  <button class="tab" data-tab="foryou"><span>🎯</span>For You</button>
+  <button class="tab" data-tab="ending"><span>⏳</span>Ending</button>
+  <button class="tab" data-tab="evergreen"><span>♾️</span>Always On</button>
+  <button class="tab" data-tab="spotted"><span>👀</span>Spotted</button>
+</nav>
+
+<button id="fab" class="fab" title="I spotted a deal">＋</button>
+
+<div class="toast" id="toast"></div>
+<div class="sheet-backdrop hidden" id="sheetBackdrop"></div>
+<div class="sheet hidden" id="sheet"></div>
+
+<div class="exit-overlay" id="exitOverlay">
+  <div class="exit-dialog">
+    <span class="exit-icon">🛰️</span>
+    <h3 class="exit-title" id="exitTitle">Leaving so soon?</h3>
+    <p class="exit-desc" id="exitDesc">There are still deals out there waiting for you. Come back before they expire!</p>
+    <div class="exit-actions">
+      <button class="exit-stay" id="exitStay">Keep Exploring</button>
+      <button class="exit-leave" id="exitLeave">Leave</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
