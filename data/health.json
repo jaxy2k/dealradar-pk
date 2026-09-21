@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-09-20T22:07:38.428782+00:00",
-  "total_deals": 4044,
+  "timestamp": "2026-09-21T00:09:12.246018+00:00",
+  "total_deals": 4043,
   "banks": {
     "HBL": {
       "ok": 20,
       "fail": 0,
-      "deals": 648
+      "deals": 647
     },
     "UBL": {
       "ok": 20,
