@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-09-21T06:10:39.463905+00:00",
-  "total_deals": 4043,
+  "timestamp": "2026-09-21T08:09:07.320066+00:00",
+  "total_deals": 4042,
   "banks": {
     "HBL": {
       "ok": 20,
@@ -15,7 +15,7 @@
     "Meezan": {
       "ok": 20,
       "fail": 0,
-      "deals": 458
+      "deals": 457
     },
     "Alfalah": {
       "ok": 20,
