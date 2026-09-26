@@ -11,28 +11,28 @@
       "id": "easypaisa",
       "name": "Easypaisa",
       "color": "#3aaa35",
-      "logo": "easypaisa.png",
+      "logo": "logos/easypaisa.png",
       "brand_type": "wallet"
     },
     {
       "id": "jazzcash",
       "name": "JazzCash",
       "color": "#ed1c24",
-      "logo": "jazzcash.png",
+      "logo": "logos/jazzcash.png",
       "brand_type": "wallet"
     },
     {
       "id": "hbl",
       "name": "HBL",
       "color": "#00a76f",
-      "logo": "hbl.png",
+      "logo": "logos/hbl.png",
       "brand_type": "bank"
     },
     {
       "id": "bankalfalah",
       "name": "Bank Alfalah",
       "color": "#006a4e",
-      "logo": "bankalfalah.png",
+      "logo": "logos/bankalfalah.png",
       "brand_type": "bank"
     },
     {
@@ -46,56 +46,56 @@
       "id": "faysal",
       "name": "Faysal Bank",
       "color": "#7b1f6f",
-      "logo": "faysal.png",
+      "logo": "logos/faysal.png",
       "brand_type": "bank"
     },
     {
       "id": "scb",
       "name": "Standard Chartered",
       "color": "#1f7a8c",
-      "logo": "scb.png",
+      "logo": "logos/scb.png",
       "brand_type": "bank"
     },
     {
       "id": "foodpanda",
       "name": "Foodpanda",
       "color": "#d70f64",
-      "logo": "foodpanda.png",
+      "logo": "logos/foodpanda.png",
       "brand_type": "delivery"
     },
     {
       "id": "daraz",
       "name": "Daraz",
       "color": "#f57224",
-      "logo": "daraz.png",
+      "logo": "logos/daraz.png",
       "brand_type": "ecommerce"
     },
     {
       "id": "kfc",
       "name": "KFC",
       "color": "#c8102e",
-      "logo": "kfc.png",
+      "logo": "logos/kfc.png",
       "brand_type": "food"
     },
     {
       "id": "dominos",
       "name": "Domino's",
       "color": "#0079a8",
-      "logo": "dominos.png",
+      "logo": "logos/dominos.png",
       "brand_type": "food"
     },
     {
       "id": "carrefour",
       "name": "Carrefour",
       "color": "#004e9c",
-      "logo": "carrefour.png",
+      "logo": "logos/carrefour.png",
       "brand_type": "retail"
     },
     {
       "id": "hardees",
       "name": "Hardee's",
       "color": "#e03c31",
-      "logo": "hardees.png",
+      "logo": "logos/hardees.png",
       "brand_type": "food"
     },
     {
@@ -103,21 +103,21 @@
       "name": "TIM Hortons",
       "brand_type": "qsr",
       "color": "#c8102e",
-      "logo": "timhortons.png"
+      "logo": "logos/timhortons.png"
     },
     {
       "id": "secondcup",
       "name": "Second Cup",
       "brand_type": "qsr",
       "color": "#8b4513",
-      "logo": "secondcup.png"
+      "logo": "logos/secondcup.png"
     },
     {
       "id": "cinnabon",
       "name": "Cinnabon",
       "brand_type": "qsr",
       "color": "#d4a017",
-      "logo": "cinnabon.png"
+      "logo": "logos/cinnabon.png"
     }
   ],
   "deals": [
