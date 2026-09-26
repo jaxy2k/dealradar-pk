@@ -1,0 +1,59 @@
+name: "Health Check"
+
+"on":
+  schedule:
+    - cron: "30 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check data freshness
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+          from datetime import datetime, timezone
+
+          # Check live_deals.json age
+          try:
+              data = json.load(open("data/live_deals.json"))
+              generated = data["meta"]["generated_at"]
+              age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(generated)).total_seconds() / 3600
+              print(f"Data age: {age_h:.1f} hours")
+              if age_h > 8:
+                  print(f"::error::Data is STALE ({age_h:.1f}h old). Last scrape may have failed.")
+                  sys.exit(1)
+          except FileNotFoundError:
+              print("::error::live_deals.json not found!")
+              sys.exit(1)
+
+          # Check health.json
+          try:
+              health = json.load(open("data/health.json"))
+              overall = health.get("overall", "UNKNOWN")
+              print(f"Scraper health: {overall}")
+              if overall == "DOWN":
+                  print("::error::All banks DOWN — API may be blocked or changed.")
+                  sys.exit(1)
+              elif overall == "DEGRADED":
+                  banks_down = [k for k, v in health["banks"].items() if v["fail"] > 0 and v["ok"] == 0]
+                  print(f"::warning::Degraded — banks down: {', '.join(banks_down)}")
+          except FileNotFoundError:
+              print("::warning::health.json not found (first run?)")
+          EOF
+
+      - name: Alert on failure
+        if: failure()
+        run: |
+          echo "=== ALERT: DealRadar PK data pipeline issue ==="
+          echo "Check Actions logs: https://github.com/${{ github.repository }}/actions"
+          # If you have a Telegram bot, uncomment and set TELEGRAM_TOKEN + TELEGRAM_CHAT_ID in repo secrets:
+          # curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+          #   -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          #   -d text="DealRadar PK: Data pipeline issue detected! Check GitHub Actions."
