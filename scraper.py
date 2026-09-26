@@ -241,12 +241,15 @@ def process_merchant_deals(bank_cfg, city, merchant, raw_deals):
             continue
 
         payments = set()
+        card_types = []
         for assoc in raw.get("associations", []):
             card_name = assoc.get("name", "")
             if card_name:
                 payments.add(map_card_to_payment(card_name, bank_cfg["brand_id"]))
+                card_types.append(card_name)
         if not payments:
             payments = {"visa_card"}
+        card_type_label = ", ".join(card_types[:3]) if card_types else "Any card"
 
         discount = extract_discount(raw)
         cap = extract_cap(description)
@@ -263,6 +266,7 @@ def process_merchant_deals(bank_cfg, city, merchant, raw_deals):
             "discount": discount,
             "eligibility": {
                 "payment": sorted(payments),
+                "card_type": card_type_label,
                 "merchant": merchant_name,
                 "user": "any",
                 "min_spend": min_spend,
@@ -279,7 +283,7 @@ def process_merchant_deals(bank_cfg, city, merchant, raw_deals):
             "source": {
                 "type": "official",
                 "platform": "Peekaboo Guru SDK",
-                "url": f"https://{bank_cfg['subdomain']}",
+                "url": raw.get("dealUrl") or raw.get("url") or f"https://{bank_cfg['subdomain']}/merchant/{merchant_slug}",
                 "status": "verified",
                 "captured_at": datetime.now(timezone.utc).isoformat(),
             },
@@ -329,7 +333,13 @@ RSS_EXCLUDE = re.compile(
     r"election|vote|poll|cabinet|minister resign|impeach|"
     r"cricket|football|match|series|tournament|"
     r"hostage|militant|missile|defence|coalition|intercept|"
-    r"gold price|stock|market|share|bond|forex)",
+    r"gold price|stock|market|share|bond|forex|"
+    r"Trump|Burnham|Saudi|Maldives|Northern Ireland|UK|US |Iran|China|India|"
+    r"diplomat|summit|agreement|treaty|ambassador|foreign minister|"
+    r"export ban|import|tariff|trade deal|GDP|inflation rate|"
+    r"visits|reviews|implementation|importance|ties|relations|"
+    r"record|plummet|surge|soar|spike|rise|fall|drop|increase|decrease|"
+    r"panel prices|prices have|price hit|prices hit)",
     re.I
 )
 
@@ -337,7 +347,8 @@ RSS_EXCLUDE = re.compile(
 RSS_STRONG = re.compile(
     r"(subsid|relief|discount|waiv|rebate|cashback|voucher|"
     r"سبسڈی|رعایت|مفت|چھوٹ|ریلیف|"
-    r"petrol|fuel|bijli|electricity|solar|wheat|flour|atta|"
+    r"free electricity|free gas|free wheat|free flour|"
+    r"petrol price (cut|reduce|decrease)|fuel price (cut|reduce)|"
     r"پیٹرول|بجلی|سولر|آٹا|گندم)",
     re.I
 )
@@ -439,11 +450,16 @@ def scrape_rss_feed(source_name, url):
 
         # Filter: title must contain a deal signal
         # Hard deal words (subsidy, relief, discount) always pass
-        # Soft topic words (petrol, fuel, solar) only pass if no exclude word present
+        # Soft topic words only pass if Pakistan-specific AND no exclude word
         hard_deal = re.search(r"(subsid|relief|discount|waiv|rebate|cashback|voucher|سبسڈی|ریلیف)", title, re.I)
         soft_topic = re.search(r"(petrol|fuel|bijli|electricity|solar|wheat|flour|atta|پیٹرول|بجلی|سولر|آٹا)", title, re.I)
         if not hard_deal and not soft_topic:
             continue
+        # Require Pakistan context for soft topics
+        if soft_topic and not hard_deal:
+            pk_context = re.search(r"(Pakistan|PM |Prime Minister|federal|Sindh|Punjab|KPK|Balochistan|OGRA|NEPRA|ECC|cabinet approv)", title, re.I)
+            if not pk_context:
+                continue
         if RSS_EXCLUDE.search(title) and not hard_deal:
             continue
 
