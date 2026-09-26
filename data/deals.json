@@ -1,0 +1,3185 @@
+{
+  "meta": {
+    "generated_at": "2026-09-18T20:49:00+05:00",
+    "now": "2026-09-19T10:00:00+05:00",
+    "note": "Seed dataset v3 — all source URLs marked pending. No unverified social links.",
+    "currency": "PKR",
+    "total_deals": 51
+  },
+  "brands": [
+    {
+      "id": "easypaisa",
+      "name": "Easypaisa",
+      "color": "#3aaa35",
+      "logo": "easypaisa.png",
+      "brand_type": "wallet"
+    },
+    {
+      "id": "jazzcash",
+      "name": "JazzCash",
+      "color": "#ed1c24",
+      "logo": "jazzcash.png",
+      "brand_type": "wallet"
+    },
+    {
+      "id": "hbl",
+      "name": "HBL",
+      "color": "#00a76f",
+      "logo": "hbl.png",
+      "brand_type": "bank"
+    },
+    {
+      "id": "bankalfalah",
+      "name": "Bank Alfalah",
+      "color": "#006a4e",
+      "logo": "bankalfalah.png",
+      "brand_type": "bank"
+    },
+    {
+      "id": "meezan",
+      "name": "Meezan Bank",
+      "color": "#0b6f5b",
+      "brand_type": "bank",
+      "logo": "meezan.png"
+    },
+    {
+      "id": "faysal",
+      "name": "Faysal Bank",
+      "color": "#7b1f6f",
+      "logo": "faysal.png",
+      "brand_type": "bank"
+    },
+    {
+      "id": "scb",
+      "name": "Standard Chartered",
+      "color": "#1f7a8c",
+      "logo": "scb.png",
+      "brand_type": "bank"
+    },
+    {
+      "id": "foodpanda",
+      "name": "Foodpanda",
+      "color": "#d70f64",
+      "logo": "foodpanda.png",
+      "brand_type": "delivery"
+    },
+    {
+      "id": "daraz",
+      "name": "Daraz",
+      "color": "#f57224",
+      "logo": "daraz.png",
+      "brand_type": "ecommerce"
+    },
+    {
+      "id": "kfc",
+      "name": "KFC",
+      "color": "#c8102e",
+      "logo": "kfc.png",
+      "brand_type": "food"
+    },
+    {
+      "id": "dominos",
+      "name": "Domino's",
+      "color": "#0079a8",
+      "logo": "dominos.png",
+      "brand_type": "food"
+    },
+    {
+      "id": "carrefour",
+      "name": "Carrefour",
+      "color": "#004e9c",
+      "logo": "carrefour.png",
+      "brand_type": "retail"
+    },
+    {
+      "id": "hardees",
+      "name": "Hardee's",
+      "color": "#e03c31",
+      "logo": "hardees.png",
+      "brand_type": "food"
+    },
+    {
+      "id": "timhortons",
+      "name": "TIM Hortons",
+      "brand_type": "qsr",
+      "color": "#c8102e",
+      "logo": "timhortons.png"
+    },
+    {
+      "id": "secondcup",
+      "name": "Second Cup",
+      "brand_type": "qsr",
+      "color": "#8b4513",
+      "logo": "secondcup.png"
+    },
+    {
+      "id": "cinnabon",
+      "name": "Cinnabon",
+      "brand_type": "qsr",
+      "color": "#d4a017",
+      "logo": "cinnabon.png"
+    }
+  ],
+  "deals": [
+    {
+      "id": "d1",
+      "brand": "easypaisa",
+      "brand_type": "wallet",
+      "category": "food",
+      "title": "50% off at Hardee's via Easypaisa / JazzCash debit",
+      "summary": "Pay with Easypaisa or JazzCash Debit Card and get 50% off at Hardee's — only for 2 days this weekend.",
+      "discount": {
+        "kind": "percent",
+        "value": 50,
+        "cap": 2000
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_debit",
+          "jazzcash_debit"
+        ],
+        "merchant": "hardees",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad"
+      ],
+      "valid_from": "2026-09-18",
+      "valid_until": "2026-09-20",
+      "exclusions": [
+        "2-day weekend flash",
+        "Not valid with other promotions"
+      ],
+      "steps": [
+        "Visit any participating Hardee's outlet",
+        "Order your meal",
+        "Pay with Easypaisa or JazzCash Debit Card",
+        "50% discount auto-applied at POS"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "instagram",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-18T11:20:00+05:00"
+      },
+      "status": "active",
+      "verification": "unverified",
+      "confidence": 0.86,
+      "community": {
+        "votes": 312,
+        "worked": 41,
+        "failed": 3,
+        "saves": 188,
+        "spotted_by": "@deals.pk",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d3",
+      "brand": "jazzcash",
+      "brand_type": "wallet",
+      "category": "shopping",
+      "title": "JazzCash app — Save up to 50% on food, fashion & more",
+      "summary": "Big discounts across food, fashion and everyday shopping when you pay with the JazzCash app.",
+      "discount": {
+        "kind": "percent",
+        "value": 50,
+        "cap": null
+      },
+      "eligibility": {
+        "payment": [
+          "jazzcash_app",
+          "jazzcash_qr"
+        ],
+        "merchant": "multiple",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-08-20",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "Select merchant partners only"
+      ],
+      "steps": [
+        "Open JazzCash app → Marketplace",
+        "Browse partner merchants",
+        "Pay via JazzCash QR or app",
+        "Discount auto-applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "jazzcash.com.pk",
+        "url": "https://www.jazzcash.com.pk/deals/",
+        "status": "verified",
+        "captured_at": "2026-09-17T18:30:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.9,
+      "community": {
+        "votes": 205,
+        "worked": 73,
+        "failed": 6,
+        "saves": 96,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "d4",
+      "brand": "faysal",
+      "brand_type": "bank",
+      "category": "ecommerce",
+      "title": "Up to 11% off on Daraz with Faysal Bank UnionPay PayPak Debit",
+      "summary": "Pay on Daraz with Faysal Bank UnionPay PayPak Debit Card for up to 11% off.",
+      "discount": {
+        "kind": "percent",
+        "value": 11,
+        "cap": null
+      },
+      "eligibility": {
+        "payment": [
+          "faysal_debit"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-06-01",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "PayPak debit only"
+      ],
+      "steps": [
+        "Add items to Daraz cart",
+        "At checkout, select Faysal Bank UnionPay PayPak Debit",
+        "Discount auto-applied on payment page"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "facebook",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-14T10:10:00+05:00"
+      },
+      "status": "active",
+      "verification": "unverified",
+      "confidence": 0.82,
+      "community": {
+        "votes": 158,
+        "worked": 58,
+        "failed": 9,
+        "saves": 71,
+        "spotted_by": "@saver_sana",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#f97316",
+          "#fbbf24"
+        ]
+      }
+    },
+    {
+      "id": "d5",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "Rs 300 off on first 3 Foodpanda orders",
+      "summary": "New users get Rs 300 off on each of their first 3 Foodpanda orders above Rs 1,200.",
+      "discount": {
+        "kind": "flat",
+        "value": 300,
+        "cap": 900
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "foodpanda",
+        "user": "new",
+        "min_spend": 1200
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad"
+      ],
+      "valid_from": "2026-09-05",
+      "valid_until": "2026-09-25",
+      "exclusions": [
+        "Minimum order Rs 1,200"
+      ],
+      "steps": [
+        "Download Foodpanda app (new users only)",
+        "Add items worth Rs 1,200+",
+        "Voucher auto-applies at checkout",
+        "Repeat for 3 orders"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "picodi.com",
+        "url": "https://www.picodi.com/pk/foodpanda",
+        "status": "verified",
+        "captured_at": "2026-09-18T08:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.88,
+      "community": {
+        "votes": 122,
+        "worked": 30,
+        "failed": 2,
+        "saves": 64,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d6",
+      "brand": "kfc",
+      "brand_type": "food",
+      "category": "food",
+      "title": "Buy 1 Get 1 Zinger burger on HBL debit card",
+      "summary": "BOGO on Zinger burgers when paying with an HBL debit card at participating KFC outlets.",
+      "discount": {
+        "kind": "bogo",
+        "value": null,
+        "cap": null
+      },
+      "eligibility": {
+        "payment": [
+          "hbl_debit"
+        ],
+        "merchant": "kfc",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "Karachi",
+        "Lahore"
+      ],
+      "valid_from": "2026-09-10",
+      "valid_until": "2026-10-10",
+      "exclusions": [
+        "Participating outlets only"
+      ],
+      "steps": [
+        "Visit a participating KFC outlet",
+        "Order 2 Zinger burgers",
+        "Pay with HBL debit card",
+        "Second burger free at billing"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "instagram",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-12T16:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "unverified",
+      "confidence": 0.79,
+      "community": {
+        "votes": 240,
+        "worked": 22,
+        "failed": 5,
+        "saves": 130,
+        "spotted_by": "@foodies_khi",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d7",
+      "brand": "daraz",
+      "brand_type": "ecommerce",
+      "category": "ecommerce",
+      "title": "9.9 Mega Sale — extra 15% off with Meezan debit card",
+      "summary": "During the 9.9 sale, pay with Meezan Bank debit card for an extra 15% off, capped at Rs 2,500.",
+      "discount": {
+        "kind": "percent",
+        "value": 15,
+        "cap": 2500
+      },
+      "eligibility": {
+        "payment": [
+          "meezan_debit"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-08",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "Excludes Daraz Mall select items"
+      ],
+      "steps": [
+        "Shop during Daraz 9.9 Mega Sale",
+        "Add items to cart",
+        "At checkout, select Meezan debit card",
+        "Extra 15% applied (cap Rs 2,500)"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "daraz.pk",
+        "url": "https://www.daraz.pk/",
+        "status": "verified",
+        "captured_at": "2026-09-17T12:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.91,
+      "community": {
+        "votes": 410,
+        "worked": 64,
+        "failed": 3,
+        "saves": 220,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#f97316",
+          "#fbbf24"
+        ]
+      }
+    },
+    {
+      "id": "d8",
+      "brand": "dominos",
+      "brand_type": "food",
+      "category": "food",
+      "title": "30% off on Easypaisa wallet payments at Domino's",
+      "summary": "Pay with Easypaisa wallet at Domino's and get 30% off on any pizza order.",
+      "discount": {
+        "kind": "percent",
+        "value": 30,
+        "cap": 800
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_wallet"
+        ],
+        "merchant": "dominos",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "Islamabad",
+        "Rawalpindi"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Dine-in & takeaway only"
+      ],
+      "steps": [
+        "Order at any Domino's in Islamabad/Rawalpindi",
+        "Choose dine-in or takeaway",
+        "Pay via Easypaisa wallet (scan QR)",
+        "30% off applied at billing"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "facebook",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-13T19:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "unverified",
+      "confidence": 0.8,
+      "community": {
+        "votes": 95,
+        "worked": 18,
+        "failed": 4,
+        "saves": 50,
+        "spotted_by": "@isb_eats",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d9",
+      "brand": "scb",
+      "brand_type": "bank",
+      "category": "shopping",
+      "title": "10% instant discount at Carrefour with SC credit card",
+      "summary": "Standard Chartered credit card holders get 10% instant discount at Carrefour.",
+      "discount": {
+        "kind": "percent",
+        "value": 10,
+        "cap": 3000
+      },
+      "eligibility": {
+        "payment": [
+          "scb_credit"
+        ],
+        "merchant": "carrefour",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Max Rs 3,000 per transaction"
+      ],
+      "steps": [
+        "Shop at any Carrefour store",
+        "Pay with Standard Chartered credit card",
+        "10% instant discount at POS (cap Rs 3,000)"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "sc.com/pk",
+        "url": "https://www.sc.com/pk/",
+        "status": "verified",
+        "captured_at": "2026-09-16T14:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.93,
+      "community": {
+        "votes": 175,
+        "worked": 49,
+        "failed": 1,
+        "saves": 88,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "d10",
+      "brand": "bankalfalah",
+      "brand_type": "bank",
+      "category": "fuel",
+      "title": "Rs 5/litre cashback on fuel with Bank Alfalah card",
+      "summary": "Flat Rs 5 per litre cashback at Shell Pakistan on Bank Alfalah debit/credit card payments.",
+      "discount": {
+        "kind": "cashback",
+        "value": 5,
+        "cap": 500
+      },
+      "eligibility": {
+        "payment": [
+          "bankalfalah_card"
+        ],
+        "merchant": "shell",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "Monthly cap Rs 500"
+      ],
+      "steps": [
+        "Fill fuel at any Shell station",
+        "Pay with Bank Alfalah debit/credit card",
+        "Rs 5/litre cashback credited to account (monthly cap Rs 500)"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "instagram",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-11T13:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "unverified",
+      "confidence": 0.77,
+      "community": {
+        "votes": 143,
+        "worked": 27,
+        "failed": 8,
+        "saves": 60,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#22c55e",
+          "#86efac"
+        ]
+      }
+    },
+    {
+      "id": "d11",
+      "brand": "easypaisa",
+      "brand_type": "wallet",
+      "category": "shopping",
+      "title": "Easypaisa in-app Discounts — city-wise offers",
+      "summary": "Browse Easypaisa in-app Discounts tab: select your city and avail offers on food, fashion & lifestyle.",
+      "discount": {
+        "kind": "percent",
+        "value": 50,
+        "cap": null
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_wallet"
+        ],
+        "merchant": "multiple",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad",
+        "Multan",
+        "Faisalabad"
+      ],
+      "valid_from": "2026-01-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Merchant list rotates"
+      ],
+      "steps": [
+        "Open Easypaisa app",
+        "Tap 'Discounts' tab",
+        "Select your city",
+        "Browse and avail offers at listed merchants"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/discounts/",
+        "status": "verified",
+        "captured_at": "2026-09-16T09:30:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.94,
+      "community": {
+        "votes": 388,
+        "worked": 210,
+        "failed": 12,
+        "saves": 175,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "d12",
+      "brand": "carrefour",
+      "brand_type": "retail",
+      "category": "retail",
+      "title": "Buy 2 Get 1 free on grocery with JazzCash QR",
+      "summary": "Scan JazzCash QR at Carrefour checkout for Buy 2 Get 1 free on selected grocery lines.",
+      "discount": {
+        "kind": "bogo",
+        "value": null,
+        "cap": null
+      },
+      "eligibility": {
+        "payment": [
+          "jazzcash_qr"
+        ],
+        "merchant": "carrefour",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "Karachi",
+        "Lahore"
+      ],
+      "valid_from": "2026-09-10",
+      "valid_until": "2026-09-28",
+      "exclusions": [
+        "Selected SKUs only"
+      ],
+      "steps": [
+        "Pick 3 items from selected grocery lines at Carrefour",
+        "At checkout, scan JazzCash QR",
+        "Third item free on bill"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "facebook",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-15T20:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "unverified",
+      "confidence": 0.81,
+      "community": {
+        "votes": 88,
+        "worked": 15,
+        "failed": 2,
+        "saves": 41,
+        "spotted_by": "@khi_grocer",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#0ea5e9",
+          "#67e8f9"
+        ]
+      }
+    },
+    {
+      "id": "e1",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "Always-on: Foodpanda vouchers in Rewards tab",
+      "summary": "Standing voucher codes available year-round in the Foodpanda app Rewards/Vouchers section.",
+      "discount": {
+        "kind": "percent",
+        "value": 20,
+        "cap": 500
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "foodpanda",
+        "user": "any",
+        "min_spend": 1000
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-01-01",
+      "valid_until": "2027-12-31",
+      "exclusions": [
+        "Rotating voucher codes"
+      ],
+      "steps": [
+        "Open Foodpanda app → Rewards tab",
+        "Collect available vouchers",
+        "Apply at checkout on orders Rs 1,000+"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "foodpanda.pk",
+        "url": "https://foodpanda.pk/rewards",
+        "status": "verified",
+        "captured_at": "2026-09-16T09:00:00+05:00"
+      },
+      "status": "evergreen",
+      "verification": "verified",
+      "confidence": 0.9,
+      "community": {
+        "votes": 260,
+        "worked": 190,
+        "failed": 20,
+        "saves": 140,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "e2",
+      "brand": "daraz",
+      "brand_type": "ecommerce",
+      "category": "ecommerce",
+      "title": "Always-on: Daraz collectible vouchers",
+      "summary": "Daraz offers collectible vouchers year-round in the app — tap to collect before checkout.",
+      "discount": {
+        "kind": "percent",
+        "value": 10,
+        "cap": 1000
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": 1500
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-01-01",
+      "valid_until": "2027-12-31",
+      "exclusions": [
+        "Voucher must be collected first"
+      ],
+      "steps": [
+        "Open Daraz app → Vouchers section",
+        "Tap 'Collect' on available vouchers",
+        "Voucher auto-applies at checkout (min Rs 1,500)"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "daraz.pk",
+        "url": "https://www.daraz.pk/wow/i/pk/shukriya-pakistan/collectible-vouchers",
+        "status": "verified",
+        "captured_at": "2026-09-16T12:00:00+05:00"
+      },
+      "status": "evergreen",
+      "verification": "verified",
+      "confidence": 0.92,
+      "community": {
+        "votes": 310,
+        "worked": 240,
+        "failed": 15,
+        "saves": 200,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#f97316",
+          "#fbbf24"
+        ]
+      }
+    },
+    {
+      "id": "e3",
+      "brand": "meezan",
+      "brand_type": "bank",
+      "category": "shopping",
+      "title": "Always-on: Meezan debit 5% off select online stores",
+      "summary": "Ongoing 5% discount with Meezan debit card across a rotating list of partner online stores.",
+      "discount": {
+        "kind": "percent",
+        "value": 5,
+        "cap": 750
+      },
+      "eligibility": {
+        "payment": [
+          "meezan_debit"
+        ],
+        "merchant": "multiple",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-01-01",
+      "valid_until": "2027-12-31",
+      "exclusions": [
+        "Partner list changes monthly"
+      ],
+      "steps": [
+        "Check current partner list on Meezan website",
+        "Shop at any listed online store",
+        "Pay with Meezan debit card",
+        "5% off applied (cap Rs 750)"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "meezanbank.com",
+        "url": "https://www.meezanbank.com/",
+        "status": "verified",
+        "captured_at": "2026-09-16T12:00:00+05:00"
+      },
+      "status": "evergreen",
+      "verification": "verified",
+      "confidence": 0.78,
+      "community": {
+        "votes": 70,
+        "worked": 52,
+        "failed": 9,
+        "saves": 33,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "s1",
+      "brand": "hbl",
+      "brand_type": "bank",
+      "category": "food",
+      "title": "[Spotted] HBL card 25% off at a Karachi restaurant this weekend",
+      "summary": "Community-submitted: user reports 25% off with HBL debit/credit at a Clifton restaurant, Sat–Sun only.",
+      "discount": {
+        "kind": "percent",
+        "value": 25,
+        "cap": 1500
+      },
+      "eligibility": {
+        "payment": [
+          "hbl_debit",
+          "hbl_credit"
+        ],
+        "merchant": "restaurant",
+        "user": "any",
+        "min_spend": null
+      },
+      "cities": [
+        "Karachi"
+      ],
+      "valid_from": "2026-09-19",
+      "valid_until": "2026-09-21",
+      "exclusions": [
+        "Pending verification by DealRadar"
+      ],
+      "steps": [
+        "Visit the restaurant in Clifton (Sat/Sun only)",
+        "Order your meal",
+        "Pay with HBL debit or credit card",
+        "25% off at billing"
+      ],
+      "source": {
+        "type": "community",
+        "platform": "user submission",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-18T19:30:00+05:00"
+      },
+      "status": "spotted",
+      "verification": "unverified",
+      "confidence": 0.6,
+      "community": {
+        "votes": 24,
+        "worked": 3,
+        "failed": 1,
+        "saves": 9,
+        "spotted_by": "@khi_dealz",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "s2",
+      "brand": "jazzcash",
+      "brand_type": "wallet",
+      "category": "retail",
+      "title": "[Spotted] JazzCash QR flat Rs 200 off at a Lahore grocery chain",
+      "summary": "Community-submitted: flat Rs 200 off on orders above Rs 2,000 when paying via JazzCash QR, this week.",
+      "discount": {
+        "kind": "flat",
+        "value": 200,
+        "cap": 200
+      },
+      "eligibility": {
+        "payment": [
+          "jazzcash_qr"
+        ],
+        "merchant": "grocery",
+        "user": "any",
+        "min_spend": 2000
+      },
+      "cities": [
+        "Lahore"
+      ],
+      "valid_from": "2026-09-18",
+      "valid_until": "2026-09-24",
+      "exclusions": [
+        "Pending verification by DealRadar"
+      ],
+      "steps": [
+        "Shop at the grocery chain (min Rs 2,000)",
+        "At checkout, scan JazzCash QR",
+        "Rs 200 off applied on bill"
+      ],
+      "source": {
+        "type": "community",
+        "platform": "user submission",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-18T18:05:00+05:00"
+      },
+      "status": "spotted",
+      "verification": "unverified",
+      "confidence": 0.55,
+      "community": {
+        "votes": 17,
+        "worked": 2,
+        "failed": 2,
+        "saves": 6,
+        "spotted_by": "@lhr_saver",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#0ea5e9",
+          "#67e8f9"
+        ]
+      }
+    },
+    {
+      "id": "d13",
+      "brand": "easypaisa",
+      "brand_type": "wallet",
+      "category": "shopping",
+      "title": "Flat Rs 500 off on Daraz orders via Easypaisa",
+      "summary": "Pay with Easypaisa wallet on Daraz and get instant Rs 500 discount on orders above Rs 2,000.",
+      "discount": {
+        "kind": "flat",
+        "value": 500,
+        "cap": 500
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_wallet"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": 2000
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-15",
+      "valid_until": "2026-09-21",
+      "exclusions": [
+        "Digital products",
+        "Gold & jewellery"
+      ],
+      "steps": [
+        "Add items to Daraz cart (min Rs 2,000)",
+        "Select Easypaisa at checkout",
+        "Discount applies automatically"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/offers",
+        "status": "verified",
+        "captured_at": "2026-09-18T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.92,
+      "community": {
+        "votes": 89,
+        "worked": 71,
+        "failed": 4,
+        "saves": 203,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "d14",
+      "brand": "easypaisa",
+      "brand_type": "wallet",
+      "category": "food",
+      "title": "20% off at McDonald's via Easypaisa QR",
+      "summary": "Scan and pay with Easypaisa QR at any McDonald's outlet and get 20% off your total bill.",
+      "discount": {
+        "kind": "percent",
+        "value": 20,
+        "cap": 300
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_wallet"
+        ],
+        "merchant": "mcdonalds",
+        "user": "any",
+        "min_spend": 500
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad",
+        "Rawalpindi",
+        "Faisalabad"
+      ],
+      "valid_from": "2026-09-16",
+      "valid_until": "2026-09-20",
+      "exclusions": [
+        "Delivery orders",
+        "Combo meals already discounted"
+      ],
+      "steps": [
+        "Visit any McDonald's outlet",
+        "Order at counter",
+        "Scan Easypaisa QR at payment",
+        "20% off applied instantly"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/offers",
+        "status": "verified",
+        "captured_at": "2026-09-17T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.88,
+      "community": {
+        "votes": 56,
+        "worked": 48,
+        "failed": 2,
+        "saves": 167,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d15",
+      "brand": "jazzcash",
+      "brand_type": "wallet",
+      "category": "food",
+      "title": "Buy 1 Get 1 free pizza at Pizza Hut via JazzCash",
+      "summary": "Pay with JazzCash at Pizza Hut and get a free medium pizza with every medium pizza purchase.",
+      "discount": {
+        "kind": "bogo",
+        "value": null,
+        "cap": 1200
+      },
+      "eligibility": {
+        "payment": [
+          "jazzcash_app"
+        ],
+        "merchant": "pizzahut",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad",
+        "Multan",
+        "Peshawar"
+      ],
+      "valid_from": "2026-09-14",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "Delivery via third-party apps",
+        "Stuffed crust variants"
+      ],
+      "steps": [
+        "Visit Pizza Hut outlet",
+        "Order 1 medium pizza",
+        "Pay via JazzCash app QR",
+        "Free pizza added automatically"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "jazzcash.com.pk",
+        "url": "https://jazzcash.com.pk/offers",
+        "status": "verified",
+        "captured_at": "2026-09-16T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.9,
+      "community": {
+        "votes": 112,
+        "worked": 95,
+        "failed": 6,
+        "saves": 340,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d16",
+      "brand": "jazzcash",
+      "brand_type": "wallet",
+      "category": "utilities",
+      "title": "Rs 100 cashback on electricity bill payment via JazzCash",
+      "summary": "Pay your K-Electric or LESCO bill through JazzCash and get Rs 100 cashback credited within 48 hours.",
+      "discount": {
+        "kind": "cashback",
+        "value": 100,
+        "cap": 100
+      },
+      "eligibility": {
+        "payment": [
+          "jazzcash_app"
+        ],
+        "merchant": "utility_companies",
+        "user": "any",
+        "min_spend": 1000
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Duplicate payments",
+        "Bills below Rs 1,000"
+      ],
+      "steps": [
+        "Open JazzCash app",
+        "Go to Bill Payments",
+        "Select your utility company",
+        "Pay bill above Rs 1,000",
+        "Cashback credited in 48h"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "jazzcash.com.pk",
+        "url": "https://jazzcash.com.pk/offers",
+        "status": "verified",
+        "captured_at": "2026-09-15T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.95,
+      "community": {
+        "votes": 203,
+        "worked": 187,
+        "failed": 3,
+        "saves": 456,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#f59e0b",
+          "#fde68a"
+        ]
+      }
+    },
+    {
+      "id": "d17",
+      "brand": "hbl",
+      "brand_type": "bank",
+      "category": "travel",
+      "title": "15% off on Careem rides with HBL credit card",
+      "summary": "Pay for Careem rides using your HBL credit card and get 15% off every ride this week.",
+      "discount": {
+        "kind": "percent",
+        "value": 15,
+        "cap": 200
+      },
+      "eligibility": {
+        "payment": [
+          "hbl_credit"
+        ],
+        "merchant": "careem",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-17",
+      "valid_until": "2026-09-23",
+      "exclusions": [
+        "Careem Bike",
+        "Careem Food"
+      ],
+      "steps": [
+        "Book a Careem ride",
+        "Select HBL credit card as payment",
+        "15% discount applied at billing"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "hbl.com",
+        "url": "https://hbl.com/card-offers",
+        "status": "verified",
+        "captured_at": "2026-09-17T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.87,
+      "community": {
+        "votes": 45,
+        "worked": 38,
+        "failed": 2,
+        "saves": 120,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#3b82f6",
+          "#93c5fd"
+        ]
+      }
+    },
+    {
+      "id": "d18",
+      "brand": "hbl",
+      "brand_type": "bank",
+      "category": "shopping",
+      "title": "10% off at Khaadi with HBL debit card",
+      "summary": "Shop at any Khaadi store or online and pay with HBL debit card for an instant 10% discount.",
+      "discount": {
+        "kind": "percent",
+        "value": 10,
+        "cap": 1500
+      },
+      "eligibility": {
+        "payment": [
+          "hbl_debit"
+        ],
+        "merchant": "khaadi",
+        "user": "any",
+        "min_spend": 3000
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-10",
+      "valid_until": "2026-09-25",
+      "exclusions": [
+        "Sale items",
+        "Gift cards"
+      ],
+      "steps": [
+        "Shop at Khaadi (min Rs 3,000)",
+        "Pay with HBL debit card",
+        "10% off applied at POS"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "hbl.com",
+        "url": "https://hbl.com/card-offers",
+        "status": "verified",
+        "captured_at": "2026-09-14T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.85,
+      "community": {
+        "votes": 67,
+        "worked": 55,
+        "failed": 5,
+        "saves": 189,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "d19",
+      "brand": "faysal",
+      "brand_type": "bank",
+      "category": "food",
+      "title": "25% off at Chai Wala with Faysal Bank cards",
+      "summary": "Get 25% off your bill at Chai Wala outlets when you pay with any Faysal Bank card.",
+      "discount": {
+        "kind": "percent",
+        "value": 25,
+        "cap": 400
+      },
+      "eligibility": {
+        "payment": [
+          "faysal_debit"
+        ],
+        "merchant": "chaiwala",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad"
+      ],
+      "valid_from": "2026-09-12",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "Catering orders"
+      ],
+      "steps": [
+        "Visit Chai Wala outlet",
+        "Order food/drinks",
+        "Pay with Faysal Bank card",
+        "25% off applied"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "instagram",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-16T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "pending",
+      "confidence": 0.65,
+      "community": {
+        "votes": 23,
+        "worked": 18,
+        "failed": 3,
+        "saves": 78,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d20",
+      "brand": "scb",
+      "brand_type": "bank",
+      "category": "travel",
+      "title": "20% off on Booking.com hotels with SCB credit card",
+      "summary": "Book hotels on Booking.com using your Standard Chartered credit card for 20% off stays in Pakistan.",
+      "discount": {
+        "kind": "percent",
+        "value": 20,
+        "cap": 5000
+      },
+      "eligibility": {
+        "payment": [
+          "scb_credit"
+        ],
+        "merchant": "booking",
+        "user": "any",
+        "min_spend": 10000
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-10-31",
+      "exclusions": [
+        "International hotels",
+        "Non-refundable rates"
+      ],
+      "steps": [
+        "Go to Booking.com",
+        "Select a hotel in Pakistan (min Rs 10,000)",
+        "Pay with SCB credit card",
+        "20% off applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "sc.com",
+        "url": "https://sc.com/pk/card-offers",
+        "status": "verified",
+        "captured_at": "2026-09-10T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.91,
+      "community": {
+        "votes": 34,
+        "worked": 29,
+        "failed": 1,
+        "saves": 95,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#3b82f6",
+          "#93c5fd"
+        ]
+      }
+    },
+    {
+      "id": "d21",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "Free delivery on all orders above Rs 800",
+      "summary": "Foodpanda waives delivery fees on all orders above Rs 800 this week — no code needed.",
+      "discount": {
+        "kind": "free_delivery",
+        "value": 0,
+        "cap": 150
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "foodpanda",
+        "user": "any",
+        "min_spend": 800
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-16",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "pandamart orders"
+      ],
+      "steps": [
+        "Open Foodpanda app",
+        "Add items worth Rs 800+",
+        "Delivery fee auto-waived at checkout"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "picodi.com",
+        "url": "https://www.picodi.com/pk/foodpanda",
+        "status": "verified",
+        "captured_at": "2026-09-16T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.93,
+      "community": {
+        "votes": 156,
+        "worked": 140,
+        "failed": 2,
+        "saves": 520,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d22",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "50% off second order of the day",
+      "summary": "Order twice in one day on Foodpanda and get 50% off your second order (max Rs 500 off).",
+      "discount": {
+        "kind": "percent",
+        "value": 50,
+        "cap": 500
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "foodpanda",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad",
+        "Rawalpindi"
+      ],
+      "valid_from": "2026-09-18",
+      "valid_until": "2026-09-20",
+      "exclusions": [
+        "First order",
+        "pandamart"
+      ],
+      "steps": [
+        "Place first order normally",
+        "Place second order same day",
+        "50% off auto-applied"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "facebook",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-18T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "pending",
+      "confidence": 0.6,
+      "community": {
+        "votes": 12,
+        "worked": 8,
+        "failed": 2,
+        "saves": 45,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d23",
+      "brand": "daraz",
+      "brand_type": "ecommerce",
+      "category": "electronics",
+      "title": "Up to 40% off on smartphones — Daraz 9.9 Sale",
+      "summary": "Massive discounts on Samsung, Xiaomi, Oppo and Vivo smartphones during the 9.9 Mega Sale.",
+      "discount": {
+        "kind": "percent",
+        "value": 40,
+        "cap": 25000
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-09",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "Pre-order items",
+        "Refurbished phones"
+      ],
+      "steps": [
+        "Open Daraz app/website",
+        "Go to 9.9 Mega Sale section",
+        "Select smartphone",
+        "Discount already applied to listed price"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "daraz.pk",
+        "url": "https://daraz.pk/99-sale",
+        "status": "verified",
+        "captured_at": "2026-09-15T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.94,
+      "community": {
+        "votes": 234,
+        "worked": 210,
+        "failed": 8,
+        "saves": 890,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ef4444",
+          "#fca5a5"
+        ]
+      }
+    },
+    {
+      "id": "d24",
+      "brand": "daraz",
+      "brand_type": "ecommerce",
+      "category": "fashion",
+      "title": "Buy 2 Get 1 free on fashion items",
+      "summary": "Add 3 fashion items to cart and the cheapest one is free. Applies to select sellers during 9.9 Sale.",
+      "discount": {
+        "kind": "bogo",
+        "value": null,
+        "cap": 3000
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-09",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "International sellers",
+        "Items marked 'No B2G1'"
+      ],
+      "steps": [
+        "Browse fashion section on Daraz",
+        "Add 3 items from eligible sellers",
+        "Cheapest item auto-discounted at checkout"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "daraz.pk",
+        "url": "https://daraz.pk/99-sale",
+        "status": "verified",
+        "captured_at": "2026-09-14T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.89,
+      "community": {
+        "votes": 78,
+        "worked": 65,
+        "failed": 4,
+        "saves": 234,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ec4899",
+          "#f9a8d4"
+        ]
+      }
+    },
+    {
+      "id": "d25",
+      "brand": "kfc",
+      "brand_type": "food",
+      "category": "food",
+      "title": "Family Feast Rs 1,499 (was Rs 2,200) with JazzCash",
+      "summary": "KFC Family Feast deal: 8 pcs chicken, 4 regular fries, 2 large drinks at Rs 1,499 when paying via JazzCash.",
+      "discount": {
+        "kind": "flat",
+        "value": 701,
+        "cap": null
+      },
+      "eligibility": {
+        "payment": [
+          "jazzcash_app"
+        ],
+        "merchant": "kfc",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-15",
+      "valid_until": "2026-09-21",
+      "exclusions": [
+        "Delivery via third-party apps"
+      ],
+      "steps": [
+        "Visit KFC outlet or order on KFC app",
+        "Select Family Feast deal",
+        "Pay via JazzCash QR",
+        "Deal price Rs 1,499 applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "kfc.com.pk",
+        "url": "https://kfc.com.pk/deals",
+        "status": "verified",
+        "captured_at": "2026-09-16T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.91,
+      "community": {
+        "votes": 145,
+        "worked": 128,
+        "failed": 5,
+        "saves": 410,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d26",
+      "brand": "dominos",
+      "brand_type": "food",
+      "category": "food",
+      "title": "Large pizza at Rs 999 every Tuesday",
+      "summary": "Domino's Tuesday deal: any large pizza at flat Rs 999. Valid for dine-in and delivery.",
+      "discount": {
+        "kind": "fixed_price",
+        "value": 999,
+        "cap": null
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "dominos",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Premium toppings extra",
+        "Stuffed crust"
+      ],
+      "steps": [
+        "Order on Tuesday",
+        "Select any large pizza",
+        "Price shows Rs 999"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "dominos.com.pk",
+        "url": "https://dominos.com.pk/deals",
+        "status": "verified",
+        "captured_at": "2026-09-12T10:00:00+05:00"
+      },
+      "status": "evergreen",
+      "verification": "verified",
+      "confidence": 0.96,
+      "community": {
+        "votes": 312,
+        "worked": 290,
+        "failed": 4,
+        "saves": 780,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d27",
+      "brand": "carrefour",
+      "brand_type": "retail",
+      "category": "grocery",
+      "title": "15% off on fresh produce with HBL card",
+      "summary": "Get 15% off on all fresh fruits and vegetables at Carrefour when paying with HBL debit/credit card.",
+      "discount": {
+        "kind": "percent",
+        "value": 15,
+        "cap": 800
+      },
+      "eligibility": {
+        "payment": [
+          "hbl_debit"
+        ],
+        "merchant": "carrefour",
+        "user": "any",
+        "min_spend": 1500
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad"
+      ],
+      "valid_from": "2026-09-14",
+      "valid_until": "2026-09-28",
+      "exclusions": [
+        "Imported fruits",
+        "Pre-cut/packaged items"
+      ],
+      "steps": [
+        "Shop fresh produce at Carrefour (min Rs 1,500)",
+        "Pay with HBL card",
+        "15% off applied at billing"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "carrefour.pk",
+        "url": "https://carrefour.pk/offers",
+        "status": "verified",
+        "captured_at": "2026-09-15T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.86,
+      "community": {
+        "votes": 41,
+        "worked": 35,
+        "failed": 2,
+        "saves": 110,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#10b981",
+          "#6ee7b7"
+        ]
+      }
+    },
+    {
+      "id": "d28",
+      "brand": "hardees",
+      "brand_type": "food",
+      "category": "food",
+      "title": "Monster Thickburger combo at Rs 899 with Easypaisa",
+      "summary": "Get the Monster Thickburger combo (burger + fries + drink) at Rs 899 when paying via Easypaisa.",
+      "discount": {
+        "kind": "flat",
+        "value": 300,
+        "cap": 300
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_wallet"
+        ],
+        "merchant": "hardees",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad",
+        "Rawalpindi"
+      ],
+      "valid_from": "2026-09-13",
+      "valid_until": "2026-09-20",
+      "exclusions": [
+        "Add-on items",
+        "Delivery orders"
+      ],
+      "steps": [
+        "Visit Hardee's outlet",
+        "Order Monster Thickburger combo",
+        "Pay via Easypaisa QR",
+        "Combo price Rs 899"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "instagram",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-15T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "pending",
+      "confidence": 0.62,
+      "community": {
+        "votes": 18,
+        "worked": 13,
+        "failed": 3,
+        "saves": 56,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "d29",
+      "brand": "bankalfalah",
+      "brand_type": "bank",
+      "category": "shopping",
+      "title": "12% off at Sapphire with Bank Alfalah cards",
+      "summary": "Shop at Sapphire stores and get 12% instant discount when paying with any Bank Alfalah card.",
+      "discount": {
+        "kind": "percent",
+        "value": 12,
+        "cap": 2000
+      },
+      "eligibility": {
+        "payment": [
+          "bankalfalah_card"
+        ],
+        "merchant": "sapphire",
+        "user": "any",
+        "min_spend": 5000
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-10",
+      "valid_until": "2026-09-24",
+      "exclusions": [
+        "Sale section",
+        "Accessories"
+      ],
+      "steps": [
+        "Shop at Sapphire (min Rs 5,000)",
+        "Pay with Bank Alfalah card",
+        "12% off at POS"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "bankalfalah.com",
+        "url": "https://bankalfalah.com/card-offers",
+        "status": "verified",
+        "captured_at": "2026-09-13T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.84,
+      "community": {
+        "votes": 29,
+        "worked": 24,
+        "failed": 2,
+        "saves": 87,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "d30",
+      "brand": "meezan",
+      "brand_type": "bank",
+      "category": "shopping",
+      "title": "10% off at Gul Ahmed with Meezan debit card",
+      "summary": "Get 10% off on all unstitched and ready-to-wear at Gul Ahmed when paying with Meezan debit card.",
+      "discount": {
+        "kind": "percent",
+        "value": 10,
+        "cap": 1000
+      },
+      "eligibility": {
+        "payment": [
+          "meezan_debit"
+        ],
+        "merchant": "gulahmed",
+        "user": "any",
+        "min_spend": 2000
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-11",
+      "valid_until": "2026-09-25",
+      "exclusions": [
+        "Sale items",
+        "Home textiles"
+      ],
+      "steps": [
+        "Shop at Gul Ahmed (min Rs 2,000)",
+        "Pay with Meezan debit card",
+        "10% off applied"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "facebook",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-14T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "pending",
+      "confidence": 0.58,
+      "community": {
+        "votes": 15,
+        "worked": 11,
+        "failed": 2,
+        "saves": 43,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "[Spotted] Rs 250 off first pandamart order",
+      "summary": "Community member spotted: new pandamart users get Rs 250 off their first grocery order.",
+      "discount": {
+        "kind": "flat",
+        "value": 250,
+        "cap": 250
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "foodpanda",
+        "user": "new",
+        "min_spend": 1000
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad"
+      ],
+      "valid_from": "2026-09-17",
+      "valid_until": "2026-09-24",
+      "exclusions": [
+        "Existing pandamart users"
+      ],
+      "steps": [
+        "Open Foodpanda app",
+        "Go to pandamart tab",
+        "Add items worth Rs 1,000+",
+        "Rs 250 off auto-applied for new users"
+      ],
+      "source": {
+        "type": "community",
+        "platform": "",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-17T10:00:00+05:00"
+      },
+      "status": "spotted",
+      "verification": "pending",
+      "confidence": 0.55,
+      "community": {
+        "votes": 8,
+        "worked": 6,
+        "failed": 1,
+        "saves": 22,
+        "spotted_by": "user_ahmed_k",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "brand": "daraz",
+      "brand_type": "ecommerce",
+      "category": "electronics",
+      "title": "[Spotted] Extra 5% off with code DRZ99EXTRA",
+      "summary": "Stack this code on top of 9.9 Sale prices for an additional 5% off electronics.",
+      "discount": {
+        "kind": "percent",
+        "value": 5,
+        "cap": 1000
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": 5000
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-17",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "Cannot combine with other voucher codes"
+      ],
+      "steps": [
+        "Add electronics to cart (min Rs 5,000)",
+        "Apply code DRZ99EXTRA at checkout",
+        "Extra 5% off applied"
+      ],
+      "source": {
+        "type": "community",
+        "platform": "",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-17T10:00:00+05:00"
+      },
+      "status": "spotted",
+      "verification": "pending",
+      "confidence": 0.5,
+      "community": {
+        "votes": 5,
+        "worked": 3,
+        "failed": 1,
+        "saves": 18,
+        "spotted_by": "user_sana_m",
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ef4444",
+          "#fca5a5"
+        ]
+      }
+    },
+    {
+      "id": "r1",
+      "brand": "timhortons",
+      "brand_type": "qsr",
+      "category": "food",
+      "title": "30% off at TIM Hortons with Easypaisa Debit Card",
+      "summary": "Get 30% off your bill at any TIM Hortons outlet nationwide when you pay with your Easypaisa Debit Card. Valid at all locations including Islamabad, Lahore, Karachi, Peshawar, Sialkot, Gujranwala, Jhelum, and more.",
+      "discount": {
+        "kind": "percent",
+        "value": 30,
+        "cap": 1000
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_debit"
+        ],
+        "merchant": "timhortons",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Not applicable on deals & discounts"
+      ],
+      "steps": [
+        "Visit any TIM Hortons outlet",
+        "Order food/drinks",
+        "Pay with Easypaisa Debit Card",
+        "30% off applied at POS"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/coffee-house-partners/",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.97,
+      "community": {
+        "votes": 45,
+        "worked": 38,
+        "failed": 1,
+        "saves": 156,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r2",
+      "brand": "secondcup",
+      "brand_type": "qsr",
+      "category": "food",
+      "title": "30% off at Second Cup with Easypaisa Debit Card",
+      "summary": "Enjoy 30% off at Second Cup outlets nationwide — Islamabad, Lahore, Rawalpindi, Sialkot, Gujranwala, Faisalabad, Multan, Sargodha and more — when paying with Easypaisa Debit Card.",
+      "discount": {
+        "kind": "percent",
+        "value": 30,
+        "cap": 1000
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_debit"
+        ],
+        "merchant": "secondcup",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Not applicable on deals & discounts"
+      ],
+      "steps": [
+        "Visit any Second Cup outlet",
+        "Order food/drinks",
+        "Pay with Easypaisa Debit Card",
+        "30% off applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/coffee-house-partners/",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.97,
+      "community": {
+        "votes": 32,
+        "worked": 27,
+        "failed": 1,
+        "saves": 98,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r3",
+      "brand": "cinnabon",
+      "brand_type": "qsr",
+      "category": "food",
+      "title": "30% off at Cinnabon with Easypaisa Debit Card",
+      "summary": "Get 30% off at Cinnabon outlets in Lahore (Ph 5, Packages, Emporium), Islamabad (Centaurus, Giga, Huawei HQ), Murree, Sialkot, and Karachi when paying with Easypaisa Debit Card.",
+      "discount": {
+        "kind": "percent",
+        "value": 30,
+        "cap": 1000
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_debit"
+        ],
+        "merchant": "cinnabon",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Lahore",
+        "Islamabad",
+        "Murree",
+        "Sialkot",
+        "Karachi"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Not applicable on deals & discounts"
+      ],
+      "steps": [
+        "Visit Cinnabon outlet",
+        "Order rolls/drinks",
+        "Pay with Easypaisa Debit Card",
+        "30% off applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/coffee-house-partners/",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.96,
+      "community": {
+        "votes": 28,
+        "worked": 24,
+        "failed": 0,
+        "saves": 87,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r4",
+      "brand": "easypaisa",
+      "brand_type": "wallet",
+      "category": "food",
+      "title": "50% off at KREMA with Easypaisa Debit Card",
+      "summary": "Get 50% off at KREMA outlets in Karachi when paying with your Easypaisa Debit Card. Maximum discount Rs 1,000.",
+      "discount": {
+        "kind": "percent",
+        "value": 50,
+        "cap": 1000
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_debit"
+        ],
+        "merchant": "krema",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Karachi"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Not applicable on deals & discounts"
+      ],
+      "steps": [
+        "Visit KREMA outlet in Karachi",
+        "Order food/drinks",
+        "Pay with Easypaisa Debit Card",
+        "50% off applied (max Rs 1,000)"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/coffee-house-partners/",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.95,
+      "community": {
+        "votes": 15,
+        "worked": 12,
+        "failed": 1,
+        "saves": 45,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r5",
+      "brand": "easypaisa",
+      "brand_type": "wallet",
+      "category": "food",
+      "title": "50% off at Senzo London with Easypaisa Debit Card",
+      "summary": "Get 50% off at Senzo London outlets in Karachi when paying with your Easypaisa Debit Card. Maximum discount Rs 1,000.",
+      "discount": {
+        "kind": "percent",
+        "value": 50,
+        "cap": 1000
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_debit"
+        ],
+        "merchant": "senzolondon",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Karachi"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Not applicable on deals & discounts"
+      ],
+      "steps": [
+        "Visit Senzo London outlet in Karachi",
+        "Order food/drinks",
+        "Pay with Easypaisa Debit Card",
+        "50% off applied (max Rs 1,000)"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/coffee-house-partners/",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.95,
+      "community": {
+        "votes": 12,
+        "worked": 10,
+        "failed": 0,
+        "saves": 34,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r6",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "30% off Foodpanda orders with Askari Mastercard Credit Card",
+      "summary": "Get 30% off your Foodpanda order (min Rs 300) when paying with Askari Mastercard Credit Card. Max discount Rs 200. Valid on food orders, excludes shops and Pandamart.",
+      "discount": {
+        "kind": "percent",
+        "value": 30,
+        "cap": 200
+      },
+      "eligibility": {
+        "payment": [
+          "visa_card"
+        ],
+        "merchant": "foodpanda",
+        "user": "any",
+        "min_spend": 300
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Shops",
+        "Pandamart orders"
+      ],
+      "steps": [
+        "Open Foodpanda app",
+        "Add food items (min Rs 300)",
+        "Select Askari Mastercard Credit at payment",
+        "Enter voucher code at checkout",
+        "30% off applied (max Rs 200)"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "picodi.com",
+        "url": "https://www.picodi.com/pk/foodpanda",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.93,
+      "community": {
+        "votes": 67,
+        "worked": 55,
+        "failed": 3,
+        "saves": 210,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r7",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "25% off Foodpanda orders with HBL Cards (Sat-Mon)",
+      "summary": "Get 25% off your Foodpanda order (min Rs 500) when paying with any HBL card. Valid Saturday to Monday only.",
+      "discount": {
+        "kind": "percent",
+        "value": 25,
+        "cap": 300
+      },
+      "eligibility": {
+        "payment": [
+          "hbl_debit",
+          "hbl_credit"
+        ],
+        "merchant": "foodpanda",
+        "user": "any",
+        "min_spend": 500
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Valid only Saturday to Monday"
+      ],
+      "steps": [
+        "Open Foodpanda app (Sat-Mon)",
+        "Add items (min Rs 500)",
+        "Select HBL card at payment",
+        "Enter voucher code",
+        "25% off applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "picodi.com",
+        "url": "https://www.picodi.com/pk/foodpanda",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.94,
+      "community": {
+        "votes": 89,
+        "worked": 74,
+        "failed": 4,
+        "saves": 298,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r8",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "30% off Foodpanda orders with Visa Signature/Platinum (Mon-Thu)",
+      "summary": "Get 30% off your Foodpanda order (min Rs 700) when paying with Visa Signature or Platinum card. Valid Monday to Thursday only.",
+      "discount": {
+        "kind": "percent",
+        "value": 30,
+        "cap": 400
+      },
+      "eligibility": {
+        "payment": [
+          "visa_card"
+        ],
+        "merchant": "foodpanda",
+        "user": "any",
+        "min_spend": 700
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Valid only Monday to Thursday",
+        "Visa Signature and Platinum cards only"
+      ],
+      "steps": [
+        "Open Foodpanda app (Mon-Thu)",
+        "Add items (min Rs 700)",
+        "Select Visa Signature/Platinum at payment",
+        "Enter voucher code",
+        "30% off applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "picodi.com",
+        "url": "https://www.picodi.com/pk/foodpanda",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.92,
+      "community": {
+        "votes": 43,
+        "worked": 36,
+        "failed": 2,
+        "saves": 145,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r9",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "15% off Foodpanda Pick-Up orders",
+      "summary": "Get 15% off your Foodpanda order when you choose Pick-Up instead of delivery. No voucher code needed — discount applies automatically.",
+      "discount": {
+        "kind": "percent",
+        "value": 15,
+        "cap": 200
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "foodpanda",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Pick-Up orders only"
+      ],
+      "steps": [
+        "Open Foodpanda app",
+        "Add items to cart",
+        "Select Pick-Up option",
+        "15% off applied automatically"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "picodi.com",
+        "url": "https://www.picodi.com/pk/foodpanda",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.95,
+      "community": {
+        "votes": 112,
+        "worked": 98,
+        "failed": 2,
+        "saves": 380,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r10",
+      "brand": "foodpanda",
+      "brand_type": "delivery",
+      "category": "food",
+      "title": "Up to 70% off selected restaurant deals in Karachi",
+      "summary": "Foodpanda is running up to 70% off deals at selected restaurants in Karachi including Pizza Point, California Pizza, Kuchi's and more.",
+      "discount": {
+        "kind": "percent",
+        "value": 70,
+        "cap": null
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "foodpanda",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Karachi"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Selected restaurants only"
+      ],
+      "steps": [
+        "Open Foodpanda app",
+        "Go to Deals section",
+        "Filter by Karachi",
+        "Select restaurant with deal badge",
+        "Discount applied automatically"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "picodi.com",
+        "url": "https://www.picodi.com/pk/foodpanda",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.9,
+      "community": {
+        "votes": 156,
+        "worked": 130,
+        "failed": 5,
+        "saves": 520,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r11",
+      "brand": "daraz",
+      "brand_type": "ecommerce",
+      "category": "shopping",
+      "title": "Up to 30% off with HBL, Bank Alfalah, Meezan & more — Daraz 9.9",
+      "summary": "Daraz 9.9 Anniversary Sale features Big Bank Discounts of up to 30% off with HBL, Bank Alfalah, Meezan Bank, Askari Bank, MCB, Bank Islami, and Bank of Punjab cards.",
+      "discount": {
+        "kind": "percent",
+        "value": 30,
+        "cap": 5000
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-08",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "Bank-specific terms apply",
+        "Some categories excluded"
+      ],
+      "steps": [
+        "Open Daraz app during 9.9 Sale",
+        "Add items to cart",
+        "Select eligible bank card at checkout",
+        "Bank discount applied automatically"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "daraz.pk",
+        "url": "https://daraz.pk/99-sale",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.91,
+      "community": {
+        "votes": 234,
+        "worked": 198,
+        "failed": 12,
+        "saves": 890,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "r12",
+      "brand": "daraz",
+      "brand_type": "ecommerce",
+      "category": "shopping",
+      "title": "Extra 10% off with UBL Visa/Mastercard Debit — Daraz 9.9",
+      "summary": "Get an additional 10% off on your Daraz 9.9 Sale purchases when paying with UBL Visa or Mastercard Debit card.",
+      "discount": {
+        "kind": "percent",
+        "value": 10,
+        "cap": 2000
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "daraz",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-08",
+      "valid_until": "2026-09-22",
+      "exclusions": [
+        "UBL Visa/Mastercard Debit only"
+      ],
+      "steps": [
+        "Shop during Daraz 9.9 Sale",
+        "Add items to cart",
+        "Select UBL Visa/Mastercard Debit at checkout",
+        "Extra 10% off applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "facebook",
+        "url": "",
+        "status": "pending",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "pending",
+      "confidence": 0.88,
+      "community": {
+        "votes": 78,
+        "worked": 65,
+        "failed": 4,
+        "saves": 234,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "r13",
+      "brand": "meezan",
+      "brand_type": "bank",
+      "category": "food",
+      "title": "Up to 40% off at 1969 Restaurant with Meezan Premium Debit",
+      "summary": "Get up to 40% off at 1969 Restaurant when paying with Meezan Bank Premium Debit Cards. Regular Meezan debit cards get 20% off.",
+      "discount": {
+        "kind": "percent",
+        "value": 40,
+        "cap": 2000
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "1969restaurant",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "Karachi",
+        "Lahore",
+        "Islamabad"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Premium Debit gets 40%, regular gets 20%"
+      ],
+      "steps": [
+        "Visit 1969 Restaurant",
+        "Order food",
+        "Pay with Meezan Premium Debit Card",
+        "Up to 40% off applied"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "meezanbank.com",
+        "url": "https://www.meezanbank.com/card-discounts/",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.89,
+      "community": {
+        "votes": 23,
+        "worked": 19,
+        "failed": 1,
+        "saves": 67,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#ff6b35",
+          "#f7c59f"
+        ]
+      }
+    },
+    {
+      "id": "r14",
+      "brand": "easypaisa",
+      "brand_type": "wallet",
+      "category": "shopping",
+      "title": "Visa Card Discounts at partner merchants — Easypaisa",
+      "summary": "Easypaisa Visa Debit Card holders get exclusive discounts at partner merchants across Pakistan. Check the full list on Easypaisa's official page.",
+      "discount": {
+        "kind": "percent",
+        "value": 15,
+        "cap": 1500
+      },
+      "eligibility": {
+        "payment": [
+          "any"
+        ],
+        "merchant": "various",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-12-31",
+      "exclusions": [
+        "Partner merchants only",
+        "See full list on Easypaisa website"
+      ],
+      "steps": [
+        "Check Easypaisa Visa Card Discounts page",
+        "Visit partner merchant",
+        "Pay with Easypaisa Visa Debit Card",
+        "Discount applied at POS"
+      ],
+      "source": {
+        "type": "web",
+        "platform": "easypaisa.com.pk",
+        "url": "https://easypaisa.com.pk/visa-card-discounts/",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.85,
+      "community": {
+        "votes": 34,
+        "worked": 28,
+        "failed": 2,
+        "saves": 112,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#7b2ff7",
+          "#c77dff"
+        ]
+      }
+    },
+    {
+      "id": "r15",
+      "brand": "jazzcash",
+      "brand_type": "wallet",
+      "category": "telecom",
+      "title": "Rs 100 off Jazz Monthly X Plus via Easypaisa",
+      "summary": "Subscribe to Jazz Monthly X Plus (200 GB, 5,000 on-net, 1,500 off-net minutes) via Easypaisa and get Rs 100 discount.",
+      "discount": {
+        "kind": "flat",
+        "value": 100,
+        "cap": 100
+      },
+      "eligibility": {
+        "payment": [
+          "easypaisa_wallet"
+        ],
+        "merchant": "jazz",
+        "user": "any",
+        "min_spend": 0
+      },
+      "cities": [
+        "All Pakistan"
+      ],
+      "valid_from": "2026-09-01",
+      "valid_until": "2026-09-30",
+      "exclusions": [
+        "Jazz Monthly X Plus bundle only"
+      ],
+      "steps": [
+        "Open Easypaisa app",
+        "Go to Mobile Bundles",
+        "Select Jazz Monthly X Plus",
+        "Subscribe via Easypaisa",
+        "Rs 100 discount applied"
+      ],
+      "source": {
+        "type": "social",
+        "platform": "facebook",
+        "url": "https://www.facebook.com/easypaisa/posts/extra-bachat-on-jazz-monthly-x-plus-subscribe-via-easypaisa-and-enjoy-rs-100-dis/1285320983644099/",
+        "status": "verified",
+        "captured_at": "2026-09-19T10:00:00+05:00"
+      },
+      "status": "active",
+      "verification": "verified",
+      "confidence": 0.92,
+      "community": {
+        "votes": 56,
+        "worked": 48,
+        "failed": 2,
+        "saves": 178,
+        "spotted_by": null,
+        "reports_expired": 0
+      },
+      "visual": {
+        "gradient": [
+          "#8b5cf6",
+          "#c4b5fd"
+        ]
+      }
+    }
+  ]
+}
