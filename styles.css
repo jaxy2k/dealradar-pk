@@ -285,6 +285,15 @@ a{color:var(--accent2);text-decoration:none}
   background:var(--card2);color:var(--txt);font-size:14px;font-family:inherit;outline:none;transition:var(--transition)}
 .form input:focus,.form select:focus,.form textarea:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
 .merchant-hint{min-height:16px;margin:6px 2px 0;font-size:12px;font-weight:600;color:var(--accent2)}
+.founder-zone{margin-top:18px;padding-top:16px;border-top:1.5px dashed var(--line)}
+.founder-btn{width:100%;margin-top:10px;padding:13px;border-radius:14px;border:none;font-weight:800;font-size:14px;
+  color:#fff;background:linear-gradient(135deg,#7c5cff,#b5179e);box-shadow:0 6px 18px rgba(124,92,255,.3)}
+.f-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);font-weight:600;margin:10px 0;text-transform:none;letter-spacing:0}
+.f-check input{width:auto}
+.f-row{display:flex;gap:10px}
+.f-row select,.f-row input{flex:1}
+.f-row input[type=number]{max-width:140px}
+.founder-badge{margin-right:5px}
 .form textarea{min-height:80px;resize:vertical}
 .form .submit{width:100%;margin-top:18px;padding:14px;border-radius:14px;border:none;
   background:var(--grad-main);color:#fff;font-weight:700;font-size:15px;cursor:pointer;

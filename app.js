@@ -713,11 +713,12 @@ function dealCard(d, opts = {}) {
   const capLabel = d.discount?.cap ? ` <span class="cap-txt">cap Rs ${Number(d.discount.cap).toLocaleString()}</span>` : "";
   const cardType = d.eligibility?.card_type ? `<span class="card-type">${esc(d.eligibility.card_type)}</span>` : "";
   const flashTag = d.collect_required ? "Collect Now" : d.app_only ? "App Only" : d.code ? "Code Required" : d.limited_quantity ? "Limited Quantity" : isFlashDeal(d) ? "Limited Time" : "";
+  const founderBadge = d.founder_verified ? '<span class="founder-badge" title="Founder-verified">👑</span>' : "";
 
   return `<article class="deal${mine ? " match" : ""}" data-id="${d.id}">
     ${logoHtml}
     <div class="deal-body">
-      <h3 class="deal-title">${esc(crispTitle(d))}</h3>
+      <h3 class="deal-title">${founderBadge}${esc(crispTitle(d))}</h3>
       <div class="deal-sub">
         <span class="disc">${discLabel}</span>${capLabel}
         ${cardType}
@@ -1369,8 +1370,14 @@ function openSubmit() {
       <label>How to avail (steps, one per line)</label><textarea name="steps" placeholder="1. Visit outlet&#10;2. Pay with card&#10;3. Discount applied"></textarea>
       <label>Notes / terms</label><textarea name="summary" placeholder="Discount, cap, eligible cards, exclusions…"></textarea>
       <button class="submit" type="submit">Submit to Spotted</button>
-    </form>`;
+    </form>
+    <div class="founder-zone">
+      <label class="f-check"><input type="checkbox" id="founderToggle" ${isFounder() ? "checked" : ""}> 👑 I'm the founder</label>
+      <button class="founder-btn" id="founderBtn" type="button">⚡ Add a flash deal (founder)</button>
+    </div>`;
   showSheet();
+  $("#founderToggle").addEventListener("change", e => setFounder(e.target.checked));
+  $("#founderBtn").addEventListener("click", () => { setFounder(true); $("#founderToggle").checked = true; closeSheet(); setTimeout(openFounderSubmit, 260); });
   const hintEl = $("#merchantHint");
   const updateHint = () => {
     const val = $("#merchantInput").value.trim();
@@ -1411,6 +1418,121 @@ function openSubmit() {
       : `Attached to ${resolution.matched} — "${f.get("title")}" is in the queue`;
     addNotification(msg);
     brandMap.clear(); closeSheet(); state.tab = "spotted"; syncTabs(); renderAll(); toast(t("addedSpotted"));
+  });
+}
+
+// ---- founder mode ----
+// The founder is the primary deal source at the start. Founder deals use the SAME deal
+// model as community submissions — same fields, same lifecycle — but carry a higher trust
+// tier (confidence + "Founder-verified" badge) and support precise flash timing.
+function isFounder() { return store.get("dr_founder", "") === "on"; }
+function setFounder(on) { store.set("dr_founder", on ? "on" : "off"); }
+
+function openFounderSubmit() {
+  pushNav("submit");
+  const in30 = new Date(NOW.getTime() + 30 * 6e4);
+  const pad = n => String(n).padStart(2, "0");
+  const localDefault = `${in30.getFullYear()}-${pad(in30.getMonth() + 1)}-${pad(in30.getDate())}T${pad(in30.getHours())}:${pad(in30.getMinutes())}`;
+  $("#sheet").innerHTML = `<div class="grab"></div>
+    <h3>👑 Founder — add a flash deal</h3>
+    <p class="sheet-summary">Seeds the live feed instantly. Set a precise end time so the urgency popup and "Ending soon" light up.</p>
+    <form class="form" id="founderForm">
+      <label>Merchant / brand</label><input name="brand" id="fMerchant" required placeholder="e.g. KFC, Daraz, a new restaurant" autocomplete="off">
+      <div class="merchant-hint" id="fHint"></div>
+      <label>Offer (title)</label><input name="title" required placeholder="e.g. Flat 50% off all burgers">
+      <label>Discount</label>
+      <div class="f-row">
+        <select name="disc_kind"><option value="percent">% off</option><option value="flat">Rs off</option><option value="bogo">Buy 1 Get 1</option><option value="cashback">Cashback</option><option value="none">No numeric discount</option></select>
+        <input name="disc_value" type="number" min="0" step="1" placeholder="value (e.g. 50)">
+      </div>
+      <label>Category</label>
+      <select name="category">${CATS.filter(c => c[0] !== "all").map(c => `<option value="${c[0]}">${c[1]}</option>`).join("")}</select>
+      <label>City</label>
+      <select name="city">${CITIES.slice(1).map(c => `<option>${c}</option>`).join("")}<option>All Pakistan</option></select>
+      <label>Ends at (precise)</label><input name="expires_at" type="datetime-local" value="${localDefault}" required>
+      <label>Campaign type</label>
+      <select name="campaign_type"><option value="flash">Flash sale</option><option value="happy_hour">Happy hour</option><option value="weekend">Weekend offer</option><option value="limited_stock">Limited stock</option><option value="standard">Standard promo</option></select>
+      <label>Promo code (optional)</label><input name="code" placeholder="e.g. DEAL50">
+      <label class="f-check"><input name="collect_required" type="checkbox"> Collect/coupon required</label>
+      <label class="f-check"><input name="app_only" type="checkbox"> App-only deal</label>
+      <label>Restrictions / terms</label><textarea name="restrictions" placeholder="Min spend, eligible cards, exclusions…"></textarea>
+      <label>Source link</label><input name="url" placeholder="https://… (Instagram story, brand page…)">
+      <label>How to avail (one step per line)</label><textarea name="steps" placeholder="1. Open app&#10;2. Collect voucher&#10;3. Pay at checkout"></textarea>
+      <button class="submit" type="submit">⚡ Publish flash deal</button>
+    </form>`;
+  showSheet();
+  const hintEl = $("#fHint");
+  const updateHint = () => {
+    const val = $("#fMerchant").value.trim();
+    if (val.length < 2) { hintEl.textContent = ""; return; }
+    const cat = $("#founderForm [name=category]").value;
+    const key = normMerchant(val);
+    const alias = MERCHANT_ALIASES[key] || userAliases()[key];
+    const matched = DATA.brands.find(x => x.id === key || normMerchant(x.name) === key || (alias && (x.id === alias || normMerchant(x.name) === alias)));
+    hintEl.textContent = matched ? `✓ Attaches to existing brand: ${matched.name}` : `+ Creates merchant profile "${val}" (${cat === "food" ? "restaurant" : "merchant"})`;
+  };
+  $("#fMerchant").addEventListener("input", updateHint);
+  $("#founderForm [name=category]").addEventListener("change", updateHint);
+  // hide the value input when "none" selected
+  const kindSel = $("#founderForm [name=disc_kind]"), valInp = $("#founderForm [name=disc_value]");
+  const syncDisc = () => { valInp.style.display = kindSel.value === "none" || kindSel.value === "bogo" ? "none" : ""; };
+  kindSel.addEventListener("change", syncDisc); syncDisc();
+
+  $("#founderForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const category = f.get("category");
+    const resolution = resolveMerchant(f.get("brand"), category);
+    const brandId = resolution.brandId;
+    const existing = DATA.brands.find(b => b.id === brandId);
+    if (existing?.merchant_profile) existing.merchant_profile.deal_count = (existing.merchant_profile.deal_count || 0) + 1;
+
+    const kind = f.get("disc_kind");
+    const rawVal = f.get("disc_value");
+    let discount = null;
+    if (kind === "percent" && rawVal) discount = { kind: "percent", value: Number(rawVal) };
+    else if (kind === "flat" && rawVal) discount = { kind: "flat", value: Number(rawVal) };
+    else if (kind === "cashback" && rawVal) discount = { kind: "cashback", value: Number(rawVal) };
+    else if (kind === "bogo") discount = { kind: "bogo", value: null };
+
+    // Precise expiry: treat the local datetime as PKT (+05:00)
+    const expires_at = f.get("expires_at") ? new Date(f.get("expires_at") + ":00+05:00").toISOString() : null;
+    const id = "f" + Date.now();
+    const steps = (f.get("steps") || "").split("\n").map(s => s.replace(/^\d+[.)]\s*/, "").trim()).filter(Boolean);
+    const restrictions = (f.get("restrictions") || "").trim();
+
+    DATA.deals.push({
+      id, brand: brandId, brand_brand_type: existing?.brand_type || "brand", category,
+      title: f.get("title"), summary: restrictions || "Founder-verified flash deal.",
+      discount,
+      eligibility: { payment: [], merchant: f.get("brand"), user: "any", min_spend: null },
+      cities: [f.get("city")],
+      valid_from: NOW.toISOString().slice(0, 10),
+      valid_until: expires_at ? expires_at.slice(0, 10) : NOW.toISOString().slice(0, 10),
+      exclusions: restrictions ? restrictions.split(/[\n;]/).map(s => s.trim()).filter(Boolean) : [],
+      steps,
+      // flash fields
+      campaign_type: f.get("campaign_type"),
+      code: f.get("code") || null,
+      collect_required: !!f.get("collect_required"),
+      app_only: !!f.get("app_only"),
+      restrictions: restrictions || null,
+      first_seen_at: NOW.toISOString(),
+      last_seen_at: NOW.toISOString(),
+      starts_at: NOW.toISOString(),
+      expires_at,
+      merchant_info: { name: f.get("brand"), resolved_brand: resolution.matched || null, new_profile: resolution.isNew },
+      source: { type: "founder", platform: "founder submission", url: f.get("url") || "", status: "active", captured_at: NOW.toISOString() },
+      source_type: "founder", source_name: "Founder",
+      status: "active", verification: "founder", confidence: 0.95,
+      founder_verified: true, founder_added_at: NOW.toISOString(),
+      community: { votes: 0, worked: 0, failed: 0, saves: 0, spotted_by: "founder", reports_expired: 0 }
+    });
+    normalizeDeal(DATA.deals[DATA.deals.length - 1]);
+    NOW = new Date(); // device clock stays authoritative
+    addNotification(`⚡ Founder flash deal "${f.get("title")}" published`);
+    brandMap.clear(); closeSheet(); state.tab = "trending"; state.feedRendered = false; syncTabs(); renderAll();
+    toast("Flash deal live");
   });
 }
 
@@ -1733,7 +1855,12 @@ function wire() {
     setTimeout(() => { renderAll(); feed.style.transition = "opacity .25s ease, transform .25s ease"; feed.style.opacity = "1"; feed.style.transform = "none"; }, 120);
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
-  $("#fab").addEventListener("click", openSubmit);
+  // Long-press FAB opens the founder flash-deal form; short tap opens normal submit
+  let fabTimer = null, fabLong = false;
+  const fab = $("#fab");
+  fab.addEventListener("pointerdown", () => { fabLong = false; fabTimer = setTimeout(() => { fabLong = true; openFounderSubmit(); }, 550); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => fab.addEventListener(ev, () => clearTimeout(fabTimer)));
+  fab.addEventListener("click", () => { if (fabLong) { fabLong = false; return; } openSubmit(); });
   $("#alertBell").addEventListener("click", openNotifications);
   $("#langBtn").addEventListener("click", () => { toggleLang(); $("#langBtn").textContent = t("langToggle"); });
 
