@@ -113,6 +113,10 @@ a{color:var(--accent2);text-decoration:none}
 .hero-card-big:active{transform:scale(.98)}
 .hero-card-big .hero-badge{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:8px;
   background:var(--grad-hot);color:#fff;font-size:11px;font-weight:800}
+.hero-logo{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;color:#fff;font-size:12px;font-weight:800;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+.hero-logo img{width:100%;height:100%;object-fit:contain;padding:4px}
+.hero-card-sm .hero-logo{width:36px;height:36px;border-radius:10px;margin-bottom:8px}
 .hero-card-big .hero-disc{font-size:28px;font-weight:900;color:var(--accent);letter-spacing:-1px;margin-bottom:4px}
 .hero-card-big .hero-title{font-size:15px;font-weight:700;color:var(--txt);line-height:1.35;margin-bottom:6px;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -370,12 +374,12 @@ body.onboarding .sheet-backdrop{background:rgba(0,0,0,.9)}
 .exit-leave:active{transform:scale(.94)}
 
 /* ===== AI FAB ===== */
-.ai-fab{position:fixed;right:calc(50% - 199px);bottom:140px;z-index:36;height:44px;padding:0 16px 0 12px;border-radius:22px;
+.ai-fab{position:fixed;right:calc(50% - 199px);bottom:82px;z-index:36;width:44px;height:44px;padding:0;border-radius:14px;
   background:var(--grad-purple);color:#fff;border:none;
-  display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;
-  box-shadow:0 6px 20px rgba(124,58,237,.35);cursor:pointer;transition:var(--spring)}
-.ai-fab-icon{width:20px;height:20px;flex-shrink:0}
-.ai-fab-label{white-space:nowrap}
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;
+  box-shadow:0 6px 20px rgba(124,58,237,.28);cursor:pointer;transition:var(--spring)}
+.ai-fab-icon{width:21px;height:21px;flex-shrink:0}
+.ai-fab-label{display:none}
 .ai-fab:active{transform:scale(.92)}
 @media(max-width:430px){.ai-fab{right:16px}}
 
@@ -482,7 +486,7 @@ body.onboarding .sheet-backdrop{background:rgba(0,0,0,.9)}
 .logo svg{display:block}
 
 /* ===== section count badge ===== */
-.section-count{font-size:12px;font-weight:700;color:var(--muted);background:rgba(0,0,0,.05);border-radius:999px;padding:2px 8px}
+.section-count{font-size:12px;font-weight:700;color:var(--mut);background:rgba(0,0,0,.05);border-radius:999px;padding:2px 8px}
 .section-head.urgent{color:#d32f2f}
 
 /* ===== daily deal popup ===== */
@@ -492,9 +496,12 @@ body.onboarding .sheet-backdrop{background:rgba(0,0,0,.9)}
 .daily-popup-overlay.show .daily-popup{transform:scale(1) translateY(0)}
 .daily-close{position:absolute;top:10px;right:12px;background:rgba(0,0,0,.06);border:none;width:28px;height:28px;border-radius:50%;font-size:13px;color:#555;cursor:pointer}
 .daily-tag{display:inline-block;background:linear-gradient(90deg,#ff9800,#f44336);color:#fff;font-size:12px;font-weight:800;letter-spacing:.5px;border-radius:999px;padding:4px 14px;margin-bottom:14px}
-.daily-logo{width:64px;height:64px;margin:0 auto 12px;border-radius:16px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:800;color:var(--muted);font-size:20px}
+.daily-logo{width:64px;height:64px;margin:0 auto 12px;border-radius:16px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:800;color:var(--mut);font-size:20px}
 .daily-logo img{width:100%;height:100%;object-fit:contain}
 .daily-disc{font-size:30px;font-weight:900;color:#d32f2f;line-height:1.1}
 .daily-title{font-size:15px;font-weight:700;margin:8px 0 6px;color:#1a1d23}
-.daily-meta{font-size:12px;color:var(--muted);margin-bottom:16px}
+.daily-meta{font-size:12px;color:var(--mut);margin-bottom:16px}
+.results-head{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 8px;color:var(--txt)}
+.results-head strong{font-size:16px}.results-head span{font-size:12px;color:var(--mut)}
+.calendar-more{padding:12px;text-align:center;border:1px dashed var(--line);border-radius:12px;color:var(--mut);font-size:12px;background:var(--surface)}
 .daily-cta{width:100%;padding:12px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:800;cursor:pointer}

@@ -556,6 +556,7 @@ function isHidden(d) { return (d.community?.reports_expired || 0) >= 3; }
 
 function baseFilter(d) {
   if (isHidden(d)) return false;
+  if (d.status !== "evergreen" && d.valid_until && msLeft(d.valid_until) <= 0) return false;
   if (state.hiddenBrands.has(d.brand)) return false;
   if (!cityMatch(d)) return false;
   if (state.cat !== "all" && d.category !== state.cat) return false;
@@ -573,11 +574,11 @@ function tabDeals() {
   switch (state.tab) {
     case "trending": return byHeat(all.filter(d => d.status !== "evergreen" && d.status !== "spotted"));
     case "foryou": return byHeat(all.filter(d => isMine(d) && d.status !== "evergreen"));
-    case "ending": return all.filter(d => d.status !== "evergreen" && daysUntil(d.valid_until) >= 0 && daysUntil(d.valid_until) <= 3)
+    case "ending": return all.filter(d => d.status !== "evergreen" && (d.discount?.value || 0) > 0 && msLeft(d.valid_until) > 0 && daysUntil(d.valid_until) <= 3)
       .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
     case "evergreen": return all.filter(d => d.status === "evergreen").sort((a, b) => (b.community?.worked || 0) - (a.community?.worked || 0));
     case "spotted": return all.filter(d => d.status === "spotted").sort((a, b) => (b.community?.votes || 0) - (a.community?.votes || 0));
-    case "calendar": return all.filter(d => d.status !== "evergreen" && d.status !== "spotted" && daysUntil(d.valid_until) >= 0)
+    case "calendar": return all.filter(d => d.status !== "evergreen" && d.status !== "spotted" && (d.discount?.value || 0) > 0 && msLeft(d.valid_until) > 0)
       .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
   }
   return all;
@@ -667,6 +668,15 @@ function dealCard(d, opts = {}) {
   </article>`;
 }
 
+function heroLogo(d) {
+  const b = brandOf(d.brand);
+  const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const src = d.merchant_info?.logo || b.logo;
+  return `<div class="hero-logo" style="background:${src ? "#fff" : b.color}">${src
+    ? `<img src="${esc(src)}" alt="${esc(d.eligibility?.merchant || b.name)}" onerror="this.parentElement.textContent='${initials}';this.parentElement.style.background='${b.color}'">`
+    : initials}</div>`;
+}
+
 function similarGroup(deals) {
   // Best deal shown, rest collapsed in dropdown
   const sorted = [...deals].sort((a, b) => {
@@ -701,6 +711,7 @@ function scheduleRender() {
 function renderFeed() {
   const list = tabDeals();
   if (!list.length) {
+    if (state.tab === "foryou") { $("#feed").innerHTML = renderForYouTab([]); return; }
     const emptyMsgs = {
       foryou: state.myPay.size ? t("emptyForYouSet") : t("emptyForYou"),
       ending: t("emptyEnding"),
@@ -731,6 +742,13 @@ function renderFeedContent(list) {
   if (state.tab === "foryou") { $("#feed").innerHTML = renderForYouTab(list); return; }
   if (state.tab === "evergreen") { $("#feed").innerHTML = renderEvergreenTab(list); return; }
   if (state.tab === "spotted") { $("#feed").innerHTML = renderSpottedTab(list); return; }
+
+  // Search and category browsing use a focused results list instead of the dashboard.
+  if (state.q.trim() || state.cat !== "all") {
+    const label = state.q.trim() ? `Results for “${esc(state.q.trim())}”` : `${state.cat.charAt(0).toUpperCase() + state.cat.slice(1)} deals`;
+    $("#feed").innerHTML = `<div class="results-head"><strong>${label}</strong><span>${list.length} found</span></div>${list.slice(0, 80).map(dealCard).join("")}`;
+    return;
+  }
 
   // ---- TRENDING: Dashboard layout ----
   const active = list.filter(d => d.status !== "evergreen" && d.status !== "spotted" && !state.hiddenBrands.has(d.brand));
@@ -768,12 +786,14 @@ function renderFeedContent(list) {
       if (i === 0) {
         html += `<div class="hero-card-big" data-id="${d.id}">
           <span class="hero-badge">🔥 HOT</span>
+          ${heroLogo(d)}
           <div class="hero-disc">${disc}</div>
           <div class="hero-title">${esc(crispTitle(d))}</div>
           <div class="hero-meta"><span>${esc(merchant)}</span> · <span class="pill ${countdown(d.valid_until).cls}" data-countdown="${d.id}">${countdown(d.valid_until).text}</span></div>
         </div>`;
       } else {
         html += `<div class="hero-card-sm" data-id="${d.id}">
+          ${heroLogo(d)}
           <div class="sm-disc">${disc}</div>
           <div class="sm-title">${esc(crispTitle(d))}</div>
           <div class="sm-meta">${esc(merchant)}</div>
@@ -809,7 +829,7 @@ function renderFeedContent(list) {
 
   // Bank Offers (grouped by merchant, collapsible)
   const banks = realDeals.filter(d => !heroIds.has(d.id) && !pinnedIds.has(d.id) && brandOf(d.brand).brand_type === "bank")
-    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 25);
+    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 10);
   if (banks.length) {
     html += `<div class="section-head"><span class="section-icon">🏦</span> Bank Offers</div>`;
     html += renderMerchantGroups(banks);
@@ -817,7 +837,7 @@ function renderFeedContent(list) {
 
   // Wallet Apps
   const wallets = realDeals.filter(d => !heroIds.has(d.id) && !pinnedIds.has(d.id) && ["easypaisa", "jazzcash", "keenu"].includes(d.brand))
-    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 10);
+    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 6);
   if (wallets.length) {
     html += `<div class="section-head"><span class="section-icon">👛</span> Wallet Apps</div>`;
     html += wallets.map(dealCard).join("");
@@ -826,7 +846,7 @@ function renderFeedContent(list) {
   // Brands & Stores
   const brands = realDeals.filter(d => !heroIds.has(d.id) && !pinnedIds.has(d.id) && !["easypaisa", "jazzcash", "keenu"].includes(d.brand)
     && brandOf(d.brand).brand_type !== "bank" && !d.brand.startsWith("govt") && brandOf(d.brand).brand_type !== "news")
-    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 25);
+    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 10);
   if (brands.length) {
     html += `<div class="section-head"><span class="section-icon">🛍️</span> Brands & Stores</div>`;
     html += renderMerchantGroups(brands);
@@ -951,6 +971,7 @@ function renderCalendar(list) {
   const groups = {};
   list.forEach(d => { (groups[dayKey(d.valid_until)] = groups[dayKey(d.valid_until)] || []).push(d); });
   const keys = Object.keys(groups).sort();
+  const visibleKeys = keys.slice(0, 14);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const fmt = s => {
     const dt = new Date(s + "T00:00:00");
@@ -959,18 +980,19 @@ function renderCalendar(list) {
     if (diff === 1) return "Tomorrow";
     return dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   };
-  const chips = keys.slice(0, 14).map(k => {
+  const chips = visibleKeys.map(k => {
     const dt = new Date(k + "T00:00:00");
     const diff = Math.round((dt - today) / 864e5);
     const cls = diff <= 1 ? "cal-chip hot" : "cal-chip";
     return `<button class="${cls}" data-calday="${k}">${dt.getDate()} ${dt.toLocaleDateString("en-GB", { month: "short" })}<span>${groups[k].length}</span></button>`;
   }).join("");
-  const days = keys.map(k => {
+  const days = visibleKeys.map(k => {
     const diff = Math.round((new Date(k + "T00:00:00") - today) / 864e5);
     const cls = diff <= 1 ? " urgent" : "";
     return `<div class="cal-day${cls}" id="cal-${k}">
       <div class="cal-head"><span class="cal-date">${fmt(k)}</span><span class="cal-count">${groups[k].length} deal${groups[k].length > 1 ? "s" : ""} expire</span></div>
-      ${groups[k].map(dealCard).join("")}
+      ${groups[k].slice(0, 20).map(dealCard).join("")}
+      ${groups[k].length > 20 ? `<div class="calendar-more">+${groups[k].length - 20} more deals on this date — use Search to narrow results</div>` : ""}
     </div>`;
   }).join("");
   return `<div class="cal-strip">${chips}</div>${days}`;
@@ -1033,7 +1055,7 @@ function renderAll() { renderBanner(); renderChips(); renderFeed(); renderBell()
 function startTicking() {
   if (tickInterval) clearInterval(tickInterval);
   tickInterval = setInterval(() => {
-    if (!DATA.meta?.now) NOW = new Date();
+    NOW = new Date();
     heatCache.clear();
     $$("[data-countdown]").forEach(el => {
       const id = el.dataset.countdown;
@@ -1480,6 +1502,8 @@ function searchSuggestions() {
 function renderSearchSuggestions() {
   const el = $("#searchSuggest");
   if (!el) return;
+  const input = $("#q");
+  if (document.activeElement !== input || input.value.trim()) { el.classList.add("hidden"); return; }
   const sugg = searchSuggestions();
   if (!sugg.length) { el.classList.add("hidden"); return; }
   el.classList.remove("hidden");
@@ -1500,6 +1524,7 @@ function syncTabs() {
   $("#tabbar").innerHTML = Object.keys(TABS).map(k =>
     `<button class="tab${state.tab === k ? " active" : ""}" data-tab="${k}"><span>${icons[k]}</span>${t(k)}</button>`
   ).join("");
+  $("#fab").classList.toggle("hidden", state.tab !== "spotted");
 }
 
 function wire() {
@@ -1511,6 +1536,8 @@ function wire() {
     else { window.close(); }
   });
   let searchTimeout;
+  $("#q").addEventListener("focus", renderSearchSuggestions);
+  $("#q").addEventListener("blur", () => setTimeout(() => $("#searchSuggest").classList.add("hidden"), 180));
   $("#q").addEventListener("input", e => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
@@ -1742,7 +1769,8 @@ function setupLiveRefresh() {
       if (!r.ok) throw new Error("Failed to load deals");
       DATA = await r.json();
     }
-    NOW = DATA.meta?.now ? new Date(DATA.meta.now) : NOW;
+    // Always use the device clock. Dataset timestamps describe freshness, not current time.
+    NOW = new Date();
     document.documentElement.dir = LANG === "ur" ? "rtl" : "ltr";
     document.documentElement.lang = LANG;
     $("#langBtn").textContent = t("langToggle");
