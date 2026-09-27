@@ -381,7 +381,7 @@ const AI = {
 
     // Ending-soon intent
     if (has(/(ending|expire|khatam|aakhri|last day|ختم|جلد)/)) {
-      const soon = results.filter(d => daysUntil(d.valid_until) <= 3);
+      const soon = results.filter(d => daysUntil(d) <= 3);
       if (soon.length) {
         top = soon.slice(0, 5);
         return { text: `⏳ Ending soon${city ? " in " + city : ""} — grab these fast:`, deals: top };
@@ -487,25 +487,85 @@ function hideExitDialog() {
 // Android WebView bridge: called from native onBackPressed
 window.androidBack = function() { goBack(); };
 
-function msLeft(d) { return new Date(d + "T23:59:59+05:00") - NOW; }
-function daysUntil(d) { return Math.ceil(msLeft(d) / 86400000); }
-function countdown(d) {
-  const ms = msLeft(d);
+function expiryDate(value) {
+  if (value && typeof value === "object") {
+    if (value.expires_at) return new Date(value.expires_at);
+    value = value.valid_until;
+  }
+  if (!value) return null;
+  return new Date(String(value).includes("T") ? value : value + "T23:59:59+05:00");
+}
+function msLeft(value) {
+  const end = expiryDate(value);
+  return end && !Number.isNaN(end.getTime()) ? end - NOW : Infinity;
+}
+function daysUntil(value) { return Math.ceil(msLeft(value) / 86400000); }
+function countdown(value) {
+  const ms = msLeft(value);
   if (ms <= 0) return { text: t("expired"), cls: "red", ms: 0 };
   const days = Math.floor(ms / 86400000);
   if (days >= 2) return { text: t("dLeft", {n: days}), cls: days <= 3 ? "count" : "", ms };
   const hrs = Math.floor(ms / 3600000);
   const mins = Math.floor((ms % 3600000) / 60000);
+  if (hrs === 0) return { text: `${Math.max(1, mins)}m left`, cls: "count red", ms };
   return { text: t("hLeft", {h: hrs, m: mins}), cls: "count red", ms };
 }
-function hoursSince(iso) { return (NOW - new Date(iso)) / 3600000; }
+function hoursSince(iso) { return iso ? (NOW - new Date(iso)) / 3600000 : Infinity; }
+
+function normalizeDeal(d) {
+  const created = d.created_at || d.first_seen_at || d.source?.captured_at || null;
+  d.created_at = created;
+  d.starts_at = d.starts_at || (d.valid_from ? `${d.valid_from}T00:00:00+05:00` : created);
+  d.expires_at = d.expires_at || (d.valid_until ? `${d.valid_until}T23:59:59+05:00` : null);
+  d.last_verified_at = d.last_verified_at || null;
+  d.source_type = d.source_type || d.source?.type || "unknown";
+  d.source_name = d.source_name || d.source?.platform || d.brand || "unknown";
+  d.verification_count = Number(d.verification_count ?? d.community?.worked ?? 0);
+  d.failure_count = Number(d.failure_count ?? d.community?.failed ?? 0) + Number(d.community?.reports_expired ?? 0);
+  return d;
+}
+function normalizeDataset(data) {
+  (data?.deals || []).forEach(normalizeDeal);
+  return data;
+}
+function lifecycleOf(d) {
+  const left = msLeft(d);
+  if (left <= 0) return "expired";
+  if (d.status === "reported" || d.failure_count >= 3) return "reported";
+  if (d.status === "flagged") return "flagged";
+  if (d.status === "reviewing" || d.verification === "pending") return "reviewing";
+  if (d.starts_at && new Date(d.starts_at) > NOW) return "new";
+  if (left <= 24 * 36e5) return "expiring_soon";
+  if (d.created_at && hoursSince(d.created_at) <= 24) return "new";
+  return "active";
+}
+function isFlashDeal(d) {
+  const duration = d.starts_at && d.expires_at ? new Date(d.expires_at) - new Date(d.starts_at) : Infinity;
+  return !!(d.campaign_type || d.first_seen_at || (Number.isFinite(duration) && duration <= 7 * 864e5));
+}
+function expiryMs(d) { return msLeft(d); }
+function flashScore(d) {
+  const hours = Math.max(0, expiryMs(d) / 36e5);
+  const age = Math.max(0, hoursSince(d.first_seen_at || d.source?.captured_at || NOW.toISOString()));
+  const urgency = hours <= 6 ? 100 : hours <= 24 ? 85 : hours <= 72 ? 65 : 30;
+  const freshness = age <= 3 ? 100 : age <= 12 ? 80 : age <= 48 ? 55 : 20;
+  const scarcity = d.limited_quantity ? 100 : d.collect_required ? 70 : 30;
+  const value = Math.min(100, Number(d.discount?.value || 0));
+  const trust = Math.round(100 * Number(d.confidence || 0.5));
+  return urgency * .35 + freshness * .25 + scarcity * .15 + value * .15 + trust * .10;
+}
 
 // ---- heat ----
 const heatCache = new Map();
 function computeHeat(d) {
   if (heatCache.has(d.id)) return heatCache.get(d.id);
   if (d.status === "evergreen") return 0;
-  const days = Math.max(0, daysUntil(d.valid_until));
+  if (isFlashDeal(d)) {
+    const score = Math.round(flashScore(d));
+    heatCache.set(d.id, score);
+    return score;
+  }
+  const days = Math.max(0, daysUntil(d));
   const urgency = Math.min(1, Math.max(0, 1 - days / 30));
   const c = d.community || {};
   const rawPop = (c.votes || 0) + (c.saves || 0) + (c.worked || 0);
@@ -556,7 +616,7 @@ function isHidden(d) { return (d.community?.reports_expired || 0) >= 3; }
 
 function baseFilter(d) {
   if (isHidden(d)) return false;
-  if (d.status !== "evergreen" && d.valid_until && msLeft(d.valid_until) <= 0) return false;
+  if (d.status !== "evergreen" && msLeft(d) <= 0) return false;
   if (state.hiddenBrands.has(d.brand)) return false;
   if (!cityMatch(d)) return false;
   if (state.cat !== "all" && d.category !== state.cat) return false;
@@ -574,11 +634,11 @@ function tabDeals() {
   switch (state.tab) {
     case "trending": return byHeat(all.filter(d => d.status !== "evergreen" && d.status !== "spotted"));
     case "foryou": return byHeat(all.filter(d => isMine(d) && d.status !== "evergreen"));
-    case "ending": return all.filter(d => d.status !== "evergreen" && (d.discount?.value || 0) > 0 && msLeft(d.valid_until) > 0 && daysUntil(d.valid_until) <= 3)
+    case "ending": return all.filter(d => d.status !== "evergreen" && (d.discount?.value || 0) > 0 && msLeft(d) > 0 && daysUntil(d) <= 3)
       .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
     case "evergreen": return all.filter(d => d.status === "evergreen").sort((a, b) => (b.community?.worked || 0) - (a.community?.worked || 0));
     case "spotted": return all.filter(d => d.status === "spotted").sort((a, b) => (b.community?.votes || 0) - (a.community?.votes || 0));
-    case "calendar": return all.filter(d => d.status !== "evergreen" && d.status !== "spotted" && (d.discount?.value || 0) > 0 && msLeft(d.valid_until) > 0)
+    case "calendar": return all.filter(d => d.status !== "evergreen" && d.status !== "spotted" && (d.discount?.value || 0) > 0 && msLeft(d) > 0)
       .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
   }
   return all;
@@ -625,7 +685,7 @@ const Notif = {
     let changed = false;
     DATA.deals.forEach(d => {
       if (!state.saved.has(d.id) || isHidden(d) || d.status === "evergreen") return;
-      const hrs = (new Date(d.valid_until + "T23:59:59+05:00") - NOW) / 36e5;
+      const hrs = (expiryDate(d) - NOW) / 36e5;
       if (hrs >= 0 && hrs <= 24 && seen[d.id] !== todayKey) {
         seen[d.id] = todayKey; changed = true;
         this.fire("⏳ Deal ending soon!", `"${d.title}" expires in ${hrs < 1 ? "under an hour" : Math.round(hrs) + "h"}. Grab it now!`);
@@ -639,7 +699,7 @@ const Notif = {
 function dealCard(d, opts = {}) {
   const b = brandOf(d.brand);
   const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  const cd = countdown(d.valid_until);
+  const cd = countdown(d);
   const mine = isMine(d);
   const mi = d.merchant_info || {};
 
@@ -652,6 +712,7 @@ function dealCard(d, opts = {}) {
   const discLabel = discountLabel(d.discount);
   const capLabel = d.discount?.cap ? ` <span class="cap-txt">cap Rs ${Number(d.discount.cap).toLocaleString()}</span>` : "";
   const cardType = d.eligibility?.card_type ? `<span class="card-type">${esc(d.eligibility.card_type)}</span>` : "";
+  const flashTag = d.collect_required ? "Collect Now" : d.app_only ? "App Only" : d.code ? "Code Required" : d.limited_quantity ? "Limited Quantity" : isFlashDeal(d) ? "Limited Time" : "";
 
   return `<article class="deal${mine ? " match" : ""}" data-id="${d.id}">
     ${logoHtml}
@@ -660,6 +721,7 @@ function dealCard(d, opts = {}) {
       <div class="deal-sub">
         <span class="disc">${discLabel}</span>${capLabel}
         ${cardType}
+        ${flashTag ? `<span class="card-type">${flashTag}</span>` : ""}
         <span class="pill ${cd.cls}" data-countdown="${d.id}">${cd.text}</span>
         ${mine ? '<span class="matchflag">your card</span>' : ""}
       </div>
@@ -746,7 +808,7 @@ function renderFeedContent(list) {
   // Search and category browsing use a focused results list instead of the dashboard.
   if (state.q.trim() || state.cat !== "all") {
     const label = state.q.trim() ? `Results for “${esc(state.q.trim())}”` : `${state.cat.charAt(0).toUpperCase() + state.cat.slice(1)} deals`;
-    $("#feed").innerHTML = `<div class="results-head"><strong>${label}</strong><span>${list.length} found</span></div>${list.slice(0, 80).map(dealCard).join("")}`;
+    $("#feed").innerHTML = `<div class="results-head"><strong>${label}</strong><span>${list.length} found</span></div>${renderMerchantGroups(list.slice(0, 80))}`;
     return;
   }
 
@@ -761,13 +823,10 @@ function renderFeedContent(list) {
   });
   const govtDeals = active.filter(d => (d.brand.startsWith("govt") || brandOf(d.brand).brand_type === "news") && d.title.length < 80);
 
-  // Hero picks: top 3 most achievable (any card, highest discount)
-  const anyCard = realDeals.filter(d => (d.eligibility?.payment || []).includes("visa_card") || !(d.eligibility?.payment || []).length);
-  const heroPicks = anyCard.sort((a, b) => {
-    const va = a.discount?.kind === "percent" ? a.discount.value : a.discount?.value || 0;
-    const vb = b.discount?.kind === "percent" ? b.discount.value : b.discount?.value || 0;
-    return vb - va;
-  }).slice(0, 3);
+  // Hero picks prioritize verified short-lived campaigns, then achievable offers.
+  const flashDeals = realDeals.filter(isFlashDeal).sort((a, b) => flashScore(b) - flashScore(a));
+  const anyCard = realDeals.filter(d => (d.eligibility?.payment || []).includes("any") || (d.eligibility?.payment || []).includes("visa_card") || !(d.eligibility?.payment || []).length);
+  const heroPicks = [...flashDeals, ...anyCard.filter(d => !isFlashDeal(d))].slice(0, 3);
   const heroIds = new Set(heroPicks.map(d => d.id));
 
   // Category counts
@@ -789,7 +848,7 @@ function renderFeedContent(list) {
           ${heroLogo(d)}
           <div class="hero-disc">${disc}</div>
           <div class="hero-title">${esc(crispTitle(d))}</div>
-          <div class="hero-meta"><span>${esc(merchant)}</span> · <span class="pill ${countdown(d.valid_until).cls}" data-countdown="${d.id}">${countdown(d.valid_until).text}</span></div>
+          <div class="hero-meta"><span>${esc(merchant)}</span> · <span class="pill ${countdown(d).cls}" data-countdown="${d.id}">${countdown(d).text}</span></div>
         </div>`;
       } else {
         html += `<div class="hero-card-sm" data-id="${d.id}">
@@ -802,6 +861,20 @@ function renderFeedContent(list) {
     });
     html += `</div></div>`;
   }
+
+  // Flash intelligence is P0: newly discovered and imminent campaigns appear first.
+  const justDropped = flashDeals.filter(d => hoursSince(d.first_seen_at || d.source?.captured_at) <= 24 && !heroIds.has(d.id)).slice(0, 8);
+  const endingHours = flashDeals.filter(d => expiryMs(d) > 0 && expiryMs(d) <= 48 * 36e5 && !heroIds.has(d.id) && !justDropped.includes(d)).slice(0, 8);
+  if (justDropped.length) {
+    html += `<div class="section-head urgent"><span class="section-icon">⚡</span> Just Dropped <span class="section-count">${justDropped.length}</span></div>`;
+    html += justDropped.map(dealCard).join("");
+  }
+  if (endingHours.length) {
+    html += `<div class="section-head urgent"><span class="section-icon">⏳</span> Ending in Hours <span class="section-count">${endingHours.length}</span></div>`;
+    html += endingHours.map(dealCard).join("");
+  }
+
+  const flashShownIds = new Set([...justDropped, ...endingHours].map(d => d.id));
 
   // Category tiles
   const catIcons = {food:"🍔",shopping:"🛍️",ecommerce:"📦",retail:"🏬",fuel:"⛽",travel:"✈️",telecom:"📱",grocery:"🛒",electronics:"🔌",fashion:"👗",utilities:"💡",mobile:"📲",beauty:"💄"};
@@ -828,7 +901,7 @@ function renderFeedContent(list) {
   }
 
   // Bank Offers (grouped by merchant, collapsible)
-  const banks = realDeals.filter(d => !heroIds.has(d.id) && !pinnedIds.has(d.id) && brandOf(d.brand).brand_type === "bank")
+  const banks = realDeals.filter(d => !heroIds.has(d.id) && !flashShownIds.has(d.id) && !pinnedIds.has(d.id) && brandOf(d.brand).brand_type === "bank")
     .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 10);
   if (banks.length) {
     html += `<div class="section-head"><span class="section-icon">🏦</span> Bank Offers</div>`;
@@ -836,7 +909,7 @@ function renderFeedContent(list) {
   }
 
   // Wallet Apps
-  const wallets = realDeals.filter(d => !heroIds.has(d.id) && !pinnedIds.has(d.id) && ["easypaisa", "jazzcash", "keenu"].includes(d.brand))
+  const wallets = realDeals.filter(d => !heroIds.has(d.id) && !flashShownIds.has(d.id) && !pinnedIds.has(d.id) && ["easypaisa", "jazzcash", "keenu"].includes(d.brand))
     .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 6);
   if (wallets.length) {
     html += `<div class="section-head"><span class="section-icon">👛</span> Wallet Apps</div>`;
@@ -844,7 +917,7 @@ function renderFeedContent(list) {
   }
 
   // Brands & Stores
-  const brands = realDeals.filter(d => !heroIds.has(d.id) && !pinnedIds.has(d.id) && !["easypaisa", "jazzcash", "keenu"].includes(d.brand)
+  const brands = realDeals.filter(d => !heroIds.has(d.id) && !flashShownIds.has(d.id) && !pinnedIds.has(d.id) && !["easypaisa", "jazzcash", "keenu"].includes(d.brand)
     && brandOf(d.brand).brand_type !== "bank" && !d.brand.startsWith("govt") && brandOf(d.brand).brand_type !== "news")
     .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 10);
   if (brands.length) {
@@ -868,9 +941,9 @@ function renderFeedContent(list) {
 // ---- ENDING tab: grouped by urgency bucket, countdown-first ----
 function renderEndingTab(list) {
   const buckets = [
-    { key: "today", label: "Ends Today", test: d => daysUntil(d.valid_until) <= 0 },
-    { key: "tomorrow", label: "Ends Tomorrow", test: d => daysUntil(d.valid_until) === 1 },
-    { key: "soon", label: "Next 3 Days", test: d => daysUntil(d.valid_until) >= 2 }
+    { key: "today", label: "Ends Today", test: d => daysUntil(d) <= 0 },
+    { key: "tomorrow", label: "Ends Tomorrow", test: d => daysUntil(d) === 1 },
+    { key: "soon", label: "Next 3 Days", test: d => daysUntil(d) >= 2 }
   ];
   let html = "";
   for (const b of buckets) {
@@ -1009,7 +1082,7 @@ function renderBanner() {
     }
   }
   if (!inner && (state.tab === "trending" || state.tab === "ending")) {
-    const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d.valid_until) >= 0 && daysUntil(d.valid_until) <= 2);
+    const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2);
     if (soon.length) inner = `<div class="banner-card">⏳ <b>${t("flashBanner", {n: soon.length, s: soon.length > 1 ? "s" : ""})}</b> — ${[...new Set(soon.map(s => brandOf(s.brand).name))].slice(0, 3).join(", ")}${soon.length > 3 ? " +more" : ""}</div>`;
   }
   if (!inner) inner = `<div class="banner-info">${tabInfo.hint}</div>`;
@@ -1039,7 +1112,7 @@ function renderWalletPanel() {
 
 function renderBell() {
   const unread = state.notifications.filter(n => !n.read).length;
-  const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d.valid_until) >= 0 && daysUntil(d.valid_until) <= 2).length;
+  const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2).length;
   $("#bellCount").textContent = unread + soon;
 }
 
@@ -1061,7 +1134,7 @@ function startTicking() {
       const id = el.dataset.countdown;
       const d = DATA.deals.find(x => x.id === id);
       if (!d || d.status === "evergreen") return;
-      const cd = countdown(d.valid_until);
+      const cd = countdown(d);
       el.textContent = cd.text;
       el.className = `pill ${cd.cls}`;
     });
@@ -1074,7 +1147,7 @@ function openDeal(d) {
   pushNav("deal");
   const b = brandOf(d.brand); const heat = computeHeat(d);
   const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  const cd = countdown(d.valid_until);
+  const cd = countdown(d);
   const trust = merchantTrust(d.brand);
   const srcLink = d.source?.url
     ? `<a href="${d.source.url}" target="_blank" rel="noopener">${d.source.platform || "source"}</a>`
@@ -1224,7 +1297,7 @@ function openCompare(brandId) {
         <div class="compare-title">${d.title.replace(b.name + " — ", "").replace(b.name + " ", "")}</div>
         <div class="compare-meta">
           <span>${payLabel(d.eligibility?.payment)}</span>
-          <span>${countdown(d.valid_until).text}</span>
+          <span>${countdown(d).text}</span>
           <span>👍 ${d.community?.worked || 0} · 👎 ${d.community?.failed || 0}</span>
         </div>
         <button class="compare-view" data-view="${d.id}">View details</button>
@@ -1237,6 +1310,46 @@ function openCompare(brandId) {
   }));
 }
 
+// ---- merchant entity resolution: match a typed merchant name to an existing brand,
+// a known alias, or create a community merchant profile organized brand-wise ----
+const MERCHANT_ALIASES = {
+  kfc: "kfc", mcdonalds: "mcdonalds", mcd: "mcdonalds", pizzahut: "pizzahut",
+  dominos: "dominos", subway: "subway", nandos: "nandos", hardees: "hardees",
+  burgerking: "burgerking", bk: "burgerking", starbucks: "starbucks",
+  daraz: "daraz", foodpanda: "foodpanda", easypaisa: "easypaisa", jazzcash: "jazzcash",
+  hbl: "hbl", mcb: "mcb", ufone: "ufone", jazz: "jazz", telenor: "telenor", zong: "zong"
+};
+function normMerchant(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+function userAliases() {
+  try { return JSON.parse(store.get("dr_merchant_aliases", "{}")); } catch { return {}; }
+}
+function resolveMerchant(rawName, category) {
+  const key = normMerchant(rawName);
+  if (!key) return { brandId: "community", isNew: false, matched: null };
+  // 1. Exact brand id or name match
+  let b = DATA.brands.find(x => x.id === key || normMerchant(x.name) === key);
+  // 2. Built-in or user-taught alias
+  const alias = MERCHANT_ALIASES[key] || userAliases()[key];
+  if (!b && alias) b = DATA.brands.find(x => x.id === alias || normMerchant(x.name) === alias);
+  // 3. Token containment (e.g. "KFC Gulberg" → kfc) — merchant outlet names carry the brand
+  if (!b) {
+    b = DATA.brands.find(x => x.name && (key.includes(normMerchant(x.name)) || normMerchant(x.name).includes(key)) && normMerchant(x.name).length >= 3);
+  }
+  if (b) return { brandId: b.id, isNew: false, matched: b.name };
+  // 4. Create a community merchant profile (restaurant/shop/brand organized under brands)
+  const brandId = key.slice(0, 20);
+  const isRestaurant = ["food", "restaurant", "dining", "fastfood"].includes(category);
+  DATA.brands.push({
+    id: brandId, name: rawName.trim(), brand_type: isRestaurant ? "restaurant" : "merchant",
+    color: "#7c5cff", logo: null,
+    merchant_profile: { created_at: NOW.toISOString(), created_by: "community", source: "user_submission", deal_count: 0 }
+  });
+  brandMap.clear();
+  return { brandId, isNew: true, matched: null };
+}
+
 // ---- submit ----
 function openSubmit() {
   pushNav("submit");
@@ -1244,7 +1357,8 @@ function openSubmit() {
     <h3>👀 I spotted a deal</h3>
     <p class="sheet-summary">Help others not miss it. Submissions go to a verification queue, then appear in Spotted.</p>
     <form class="form" id="submitForm">
-      <label>Brand / merchant</label><input name="brand" required placeholder="e.g. KFC, Easypaisa, Daraz">
+      <label>Brand / merchant</label><input name="brand" id="merchantInput" required placeholder="e.g. KFC, Easypaisa, Daraz" autocomplete="off">
+      <div class="merchant-hint" id="merchantHint"></div>
       <label>Offer (title)</label><input name="title" required placeholder="e.g. 50% off with HBL debit">
       <label>Category</label>
       <select name="category">${CATS.filter(c => c[0] !== "all").map(c => `<option value="${c[0]}">${c[1]}</option>`).join("")}</select>
@@ -1257,26 +1371,45 @@ function openSubmit() {
       <button class="submit" type="submit">Submit to Spotted</button>
     </form>`;
   showSheet();
+  const hintEl = $("#merchantHint");
+  const updateHint = () => {
+    const val = $("#merchantInput").value.trim();
+    if (val.length < 2) { hintEl.textContent = ""; return; }
+    const cat = $("#submitForm [name=category]").value;
+    const key = normMerchant(val);
+    const alias = MERCHANT_ALIASES[key] || userAliases()[key];
+    const matched = DATA.brands.find(x => x.id === key || normMerchant(x.name) === key || (alias && (x.id === alias || normMerchant(x.name) === alias)));
+    if (matched) hintEl.textContent = `✓ Will attach to existing brand: ${matched.name}`;
+    else hintEl.textContent = `+ New merchant profile will be created for "${val}" (${cat === "food" ? "restaurant" : "merchant"})`;
+  };
+  $("#merchantInput").addEventListener("input", updateHint);
+  $("#submitForm [name=category]").addEventListener("change", updateHint);
   $("#submitForm").addEventListener("submit", e => {
     e.preventDefault();
     const f = new FormData(e.target);
-    const brandId = f.get("brand").toLowerCase().replace(/[^a-z]/g, "").slice(0, 20) || "community";
+    const category = f.get("category");
+    const resolution = resolveMerchant(f.get("brand"), category);
+    const brandId = resolution.brandId;
     const id = "u" + Date.now();
     const steps = (f.get("steps") || "").split("\n").map(s => s.replace(/^\d+[.)]\s*/, "").trim()).filter(Boolean);
+    const existing = DATA.brands.find(b => b.id === brandId);
+    if (existing?.merchant_profile) existing.merchant_profile.deal_count = (existing.merchant_profile.deal_count || 0) + 1;
     DATA.deals.push({
-      id, brand: brandId, brand_brand_type: "brand", category: f.get("category"),
-      title: "[Spotted] " + f.get("title"), summary: f.get("summary") || "Community-submitted deal.",
+      id, brand: brandId, brand_brand_type: existing?.brand_type || "brand", category,
+      title: (resolution.isNew ? "[Spotted] " : "") + f.get("title"), summary: f.get("summary") || "Community-submitted deal.",
       discount: null, eligibility: { payment: [], merchant: f.get("brand"), user: "any", min_spend: null },
       cities: [f.get("city")], valid_from: NOW.toISOString().slice(0, 10), valid_until: f.get("valid_until"),
       exclusions: ["Pending verification by DealRadar"], steps,
+      merchant_info: { name: f.get("brand"), resolved_brand: resolution.matched || null, new_profile: resolution.isNew },
       source: { type: "community", platform: "user submission", url: f.get("url") || "", status: "pending", captured_at: NOW.toISOString() },
       status: "spotted", verification: "unverified", confidence: 0.5,
       community: { votes: 1, worked: 0, failed: 0, saves: 0, spotted_by: "@you", reports_expired: 0 }
     });
-    if (!DATA.brands.some(b => b.id === brandId)) {
-      DATA.brands.push({ id: brandId, name: f.get("brand"), brand_type: "brand", color: "#666" });
-    }
-    addNotification(`Your submission "${f.get("title")}" is in the queue`);
+    normalizeDeal(DATA.deals[DATA.deals.length - 1]);
+    const msg = resolution.isNew
+      ? `Created merchant profile "${f.get("brand")}" and queued your deal`
+      : `Attached to ${resolution.matched} — "${f.get("title")}" is in the queue`;
+    addNotification(msg);
     brandMap.clear(); closeSheet(); state.tab = "spotted"; syncTabs(); renderAll(); toast(t("addedSpotted"));
   });
 }
@@ -1284,7 +1417,7 @@ function openSubmit() {
 // ---- notification center ----
 function openNotifications() {
   pushNav("notifications");
-  const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d.valid_until) >= 0 && daysUntil(d.valid_until) <= 2);
+  const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2);
   const savedDeals = DATA.deals.filter(d => state.saved.has(d.id) && !isHidden(d));
   let html = `<div class="grab"></div><h3>🔔 Notifications</h3>`;
 
@@ -1293,7 +1426,7 @@ function openNotifications() {
     soon.forEach(d => {
       html += `<div class="notif-item" data-notif-deal="${d.id}">
         <span class="notif-icon">⏳</span>
-        <span class="notif-text"><b>${brandOf(d.brand).name}</b> — ${countdown(d.valid_until).text} left</span>
+        <span class="notif-text"><b>${brandOf(d.brand).name}</b> — ${countdown(d).text} left</span>
       </div>`;
     });
   }
@@ -1302,7 +1435,7 @@ function openNotifications() {
     savedDeals.forEach(d => {
       html += `<div class="notif-item" data-notif-deal="${d.id}">
         <span class="notif-icon">🔔</span>
-        <span class="notif-text"><b>${brandOf(d.brand).name}</b> — ${countdown(d.valid_until).text}</span>
+        <span class="notif-text"><b>${brandOf(d.brand).name}</b> — ${countdown(d).text}</span>
       </div>`;
     });
   }
@@ -1327,19 +1460,26 @@ function openNotifications() {
 }
 
 // ---- onboarding (pro redesign) ----
-// ---- daily deal popup: one random trending deal per day (date-seeded) ----
+// ---- urgency popup: the most time-critical useful deal right now (per app open) ----
+const shownUrgencyIds = new Set();
 function showDailyDealPopup() {
   if (!state.onboarded) return; // onboarding is showing
-  const today = new Date().toISOString().slice(0, 10);
-  if (store.get("dr_daily_popup", "") === today) return;
-  const pool = DATA.deals.filter(d =>
-    d.status !== "evergreen" && !isHidden(d) && daysUntil(d.valid_until) >= 0 &&
-    (d.discount?.value || 0) > 0 && !d.brand.startsWith("news"));
+  // Pick the deal with the smallest positive time-left — real urgency, not a random daily pick.
+  const pool = DATA.deals.filter(d => {
+    const left = expiryMs(d);
+    return d.status !== "evergreen" && !isHidden(d) && left > 0 && left <= 24 * 36e5 &&
+      (d.discount?.value || 0) > 0 && !String(d.brand || "").startsWith("news") &&
+      !shownUrgencyIds.has(d.id);
+  });
   if (!pool.length) return;
-  // Date-seeded pick so it rotates daily and is stable within a day
-  let seed = 0;
-  for (const ch of today) seed = (seed * 31 + ch.charCodeAt(0)) % 100000;
-  const d = pool[seed % pool.length];
+  pool.sort((a, b) => expiryMs(a) - expiryMs(b));
+  const d = pool[0];
+  const left = expiryMs(d);
+  const mins = Math.round(left / 6e4);
+  let urgency;
+  if (mins < 60) urgency = `Ends in ${Math.max(1, mins)} minutes`;
+  else if (mins < 360) urgency = `Ends in ${Math.round(mins / 60)} hours`;
+  else urgency = "Ends tonight";
   const b = brandOf(d.brand);
   const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const logo = d.merchant_info?.logo || b.logo;
@@ -1348,17 +1488,17 @@ function showDailyDealPopup() {
   overlay.innerHTML = `
     <div class="daily-popup">
       <button class="daily-close" aria-label="Close">✕</button>
-      <div class="daily-tag">⭐ Deal of the Day</div>
+      <div class="daily-tag">⏰ ${urgency}</div>
       <div class="daily-logo">${logo ? `<img src="${esc(logo)}" alt="" onerror="this.replaceWith(document.createTextNode('${initials}'))">` : initials}</div>
       <div class="daily-disc">${discountLabel(d.discount)}</div>
       <div class="daily-title">${esc(crispTitle(d))}</div>
-      <div class="daily-meta">${esc(b.name)} · <span class="pill ${countdown(d.valid_until).cls}">${countdown(d.valid_until).text}</span></div>
-      <button class="daily-cta">View Deal</button>
+      <div class="daily-meta">${esc(b.name)} · <span class="pill ${countdown(d).cls}">${countdown(d).text}</span></div>
+      <button class="daily-cta">Grab It Now</button>
     </div>`;
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add("show"));
   const close = () => {
-    store.set("dr_daily_popup", today);
+    shownUrgencyIds.add(d.id); // don't re-show the same deal on the next open this session
     overlay.classList.remove("show");
     setTimeout(() => overlay.remove(), 250);
   };
@@ -1562,7 +1702,7 @@ function wire() {
   // Category tiles on dashboard
   $("#feed").addEventListener("click", e => {
     const catTile = e.target.closest(".cat-tile");
-    if (catTile) { state.cat = catTile.dataset.cat; pushNav("cat"); scheduleRender(); return; }
+    if (catTile) { state.cat = catTile.dataset.cat; scheduleRender(); return; }
     const heroCard = e.target.closest(".hero-card-big, .hero-card-sm");
     if (heroCard) {
       const d = DATA.deals.find(x => x.id === heroCard.dataset.id);
@@ -1585,7 +1725,9 @@ function wire() {
   });
   $("#tabbar").addEventListener("click", e => {
     const t = e.target.closest("[data-tab]"); if (!t) return;
-    state.tab = t.dataset.tab; state.feedRendered = false; syncTabs(); updateBackBtn();
+    state.tab = t.dataset.tab; state.feedRendered = false;
+    navStack.length = 0; updateBackBtn();
+    syncTabs();
     const feed = $("#feed");
     feed.style.opacity = "0"; feed.style.transform = "translateY(8px)";
     setTimeout(() => { renderAll(); feed.style.transition = "opacity .25s ease, transform .25s ease"; feed.style.opacity = "1"; feed.style.transform = "none"; }, 120);
@@ -1614,7 +1756,7 @@ function wire() {
       result.deals.forEach(d => {
         body.insertAdjacentHTML("beforeend", `<div class="ai-msg ai-deal" data-ai-deal="${d.id}">
           <div class="ai-deal-title">${esc(d.title)}</div>
-          <div class="ai-deal-meta">${esc(d.cities?.join(", ") || "")} · ${countdown(d.valid_until).text}</div>
+          <div class="ai-deal-meta">${esc(d.cities?.join(", ") || "")} · ${countdown(d).text}</div>
           <span class="ai-deal-disc">${discountLabel(d.discount)}</span>
         </div>`);
       });
@@ -1707,18 +1849,17 @@ async function fetchLive(silent = false) {
     if (fresh.deals && fresh.deals.length) {
       // Merge: keep local community state, update deal data
       const localMap = new Map((DATA.deals || []).map(d => [d.id, d]));
-      DATA.deals = fresh.deals.map(fd => {
+      DATA.deals = normalizeDataset({ deals: fresh.deals.map(fd => {
         const local = localMap.get(fd.id);
         if (local) {
-          // Preserve community votes from local state
           fd.community = { ...fd.community, ...local.community };
         }
         return fd;
-      });
+      }) }).deals;
       DATA.brands = fresh.brands || DATA.brands;
       DATA.meta = { ...DATA.meta, ...fresh.meta };
       lastFetch = fresh.meta?.server_time || new Date().toISOString();
-      NOW = DATA.meta?.now ? new Date(DATA.meta.now) : new Date();
+      NOW = new Date(); // Device clock always determines expiration
       heatCache.clear(); trustCache.clear(); brandMap.clear();
       renderAll();
       const newCount = fresh.deals.length - (localMap.size || 0);
@@ -1763,11 +1904,11 @@ function setupLiveRefresh() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
     }
-    if (window.__DEALS__) { DATA = window.__DEALS__; }
+    if (window.__DEALS__) { DATA = normalizeDataset(window.__DEALS__); }
     else {
       const r = await fetch("deals.json");
       if (!r.ok) throw new Error("Failed to load deals");
-      DATA = await r.json();
+      DATA = normalizeDataset(await r.json());
     }
     // Always use the device clock. Dataset timestamps describe freshness, not current time.
     NOW = new Date();

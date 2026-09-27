@@ -284,6 +284,7 @@ a{color:var(--accent2);text-decoration:none}
 .form input,.form select,.form textarea{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);
   background:var(--card2);color:var(--txt);font-size:14px;font-family:inherit;outline:none;transition:var(--transition)}
 .form input:focus,.form select:focus,.form textarea:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.merchant-hint{min-height:16px;margin:6px 2px 0;font-size:12px;font-weight:600;color:var(--accent2)}
 .form textarea{min-height:80px;resize:vertical}
 .form .submit{width:100%;margin-top:18px;padding:14px;border-radius:14px;border:none;
   background:var(--grad-main);color:#fff;font-weight:700;font-size:15px;cursor:pointer;
