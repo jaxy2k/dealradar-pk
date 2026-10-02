@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-10-02T12:09:31.958333+00:00",
-  "total_deals": 4004,
+  "timestamp": "2026-10-02T16:09:39.926151+00:00",
+  "total_deals": 3994,
   "banks": {
     "HBL": {
       "ok": 20,
       "fail": 0,
-      "deals": 650
+      "deals": 649
     },
     "UBL": {
       "ok": 20,
@@ -20,7 +20,7 @@
     "Alfalah": {
       "ok": 20,
       "fail": 0,
-      "deals": 446
+      "deals": 437
     },
     "MCB": {
       "ok": 20,
