@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-10-08T22:06:50.434501+00:00",
-  "total_deals": 3993,
+  "timestamp": "2026-10-09T00:06:16.422371+00:00",
+  "total_deals": 3991,
   "banks": {
     "HBL": {
       "ok": 20,
@@ -35,7 +35,7 @@
     "Allied": {
       "ok": 20,
       "fail": 0,
-      "deals": 735
+      "deals": 733
     }
   },
   "overall": "OK"
