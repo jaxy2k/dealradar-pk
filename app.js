@@ -1009,7 +1009,7 @@ function dealCard(d, opts = {}) {
   const mi = d.merchant_info || {};
 
   const logoHtml = mi.logo
-    ? `<div class="logo-badge" style="background:#fff"><img src="${esc(mi.logo)}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="this.parentElement.innerHTML='${initials}';this.parentElement.style.background='${b.color}'"></div>`
+    ? `<div class="logo-badge" style="background:#fff"><img src="${esc(mi.logo)}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="var pp=this.parentElement;pp.innerHTML='${initials}';pp.style.background='${b.color}'"></div>`
     : b.logo
     ? `<div class="logo-badge" style="background:${b.color}"><img src="${b.logo}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="this.parentElement.innerHTML='${initials}'"></div>`
     : `<div class="logo-badge" style="background:${b.color}">${initials}</div>`;
@@ -1041,7 +1041,7 @@ function heroLogo(d) {
   const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const src = d.merchant_info?.logo || b.logo;
   return `<div class="hero-logo" style="background:${src ? "#fff" : b.color}">${src
-    ? `<img src="${esc(src)}" alt="${esc(d.eligibility?.merchant || b.name)}" onerror="this.parentElement.textContent='${initials}';this.parentElement.style.background='${b.color}'">`
+    ? `<img src="${esc(src)}" alt="${esc(d.eligibility?.merchant || b.name)}" onerror="var pp=this.parentElement;pp.textContent='${initials}';pp.style.background='${b.color}'">`
     : initials}</div>`;
 }
 
@@ -1338,7 +1338,7 @@ function renderMerchantGroups(deals) {
       const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
       const mi = mDeals[0].merchant_info || {};
       const logoHtml = mi.logo
-        ? `<div class="logo-badge sm" style="background:#fff"><img src="${esc(mi.logo)}" alt="${esc(merchant)}" class="logo-img" loading="lazy" onerror="this.parentElement.innerHTML='${initials}';this.parentElement.style.background='${b.color}'"></div>`
+        ? `<div class="logo-badge sm" style="background:#fff"><img src="${esc(mi.logo)}" alt="${esc(merchant)}" class="logo-img" loading="lazy" onerror="var pp=this.parentElement;pp.innerHTML='${initials}';pp.style.background='${b.color}'"></div>`
         : b.logo
         ? `<div class="logo-badge sm" style="background:${b.color}"><img src="${b.logo}" alt="${esc(merchant)}" class="logo-img" loading="lazy" onerror="this.parentElement.innerHTML='${initials}'"></div>`
         : `<div class="logo-badge sm" style="background:${b.color}">${initials}</div>`;
@@ -1515,7 +1515,7 @@ function openDeal(d) {
 
   const mi2 = d.merchant_info || {};
   const logoHero = mi2.logo
-    ? `<div class="logo-badge" style="background:#fff;width:52px;height:52px"><img src="${esc(mi2.logo)}" alt="${esc(b.name)}" class="logo-img" onerror="this.parentElement.innerHTML='${initials}';this.parentElement.style.background='${b.color}'"></div>`
+    ? `<div class="logo-badge" style="background:#fff;width:52px;height:52px"><img src="${esc(mi2.logo)}" alt="${esc(b.name)}" class="logo-img" onerror="var pp=this.parentElement;pp.innerHTML='${initials}';pp.style.background='${b.color}'"></div>`
     : b.logo
     ? `<div class="logo-badge" style="background:${b.color};width:52px;height:52px"><img src="${b.logo}" alt="${esc(b.name)}" class="logo-img" onerror="this.parentElement.innerHTML='${initials}'"></div>`
     : `<div class="logo-badge" style="background:${b.color};width:52px;height:52px;font-size:16px">${initials}</div>`;
@@ -3246,8 +3246,12 @@ async function fetchLive(silent = false) {
   isRefreshing = true;
   try {
     const base = API_URL || "";
+    // Relative paths when same-origin so this works under GitHub Pages project
+    // subpaths (/dealradar-pk/live_deals.json), not just at domain root.
+    const paths = base ? [`${base}/api/deals`, `${base}/live_deals.json`]
+                       : ["api/deals", "live_deals.json"];
     let fresh = null;
-    for (const path of [`${base}/api/deals`, `${base}/live_deals.json`]) {
+    for (const path of paths) {
       try {
         const r = await fetch(path);
         if (!r.ok) continue;
@@ -3318,12 +3322,103 @@ function setupLiveRefresh() {
 }
 
 
+// ---- PWA: install prompt + safe update/reload flow ----
+// SW update strategy: new sw.js stays "waiting" until the user taps Update,
+// so nobody gets yanked mid-interaction. Code/data are network-first anyway,
+// so even an un-updated SW never serves stale offers (cache = offline fallback).
+let swRegistration = null;
+let deferredInstallPrompt = null;
+let swReloadTriggered = false;
+
+function showPwaBar(text, actionLabel, onClick, dismissible) {
+  let bar = document.getElementById("pwaBar");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "pwaBar";
+    bar.className = "pwa-bar";
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = "";
+  const msg = document.createElement("span");
+  msg.textContent = text;
+  bar.appendChild(msg);
+  if (actionLabel && onClick) {
+    const btn = document.createElement("button");
+    btn.textContent = actionLabel;
+    btn.addEventListener("click", onClick);
+    bar.appendChild(btn);
+  }
+  if (dismissible) {
+    const x = document.createElement("button");
+    x.className = "pwa-x";
+    x.textContent = "✕";
+    x.setAttribute("aria-label", "Dismiss");
+    x.addEventListener("click", () => bar.remove());
+    bar.appendChild(x);
+  }
+}
+
+function setupPWA() {
+  // Android/desktop Chromium install banner
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e.prompt;
+    showPwaBar("Install DealRadar PK for one-tap access", "Install", async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt();
+      deferredInstallPrompt = null;
+    }, true);
+  });
+  window.addEventListener("appinstalled", () => {
+    const bar = document.getElementById("pwaBar");
+    if (bar) bar.remove();
+    toast("DealRadar installed 🎉");
+  });
+
+  try {
+    if (!("serviceWorker" in navigator) || !navigator.serviceWorker) return;
+    // Only reload when an EXISTING controller is replaced (user tapped Update).
+    // A first-ever install takes control without a reload.
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      swRegistration = reg;
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener("statechange", () => {
+          if (nw.state === "installed" && navigator.serviceWorker.controller) {
+            showPwaBar("New version available", "Update", () => {
+              nw.postMessage({ type: "SKIP_WAITING" });
+            }, false);
+          }
+        });
+      });
+    }).catch(() => {}); // failed update/recovery: current SW keeps serving network-first
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || swReloadTriggered) return;
+      swReloadTriggered = true;
+      window.location.reload(); // once, after the user tapped Update
+    });
+  } catch (e) {}
+
+  // iOS: no beforeinstallprompt — show the manual Add-to-Home-Screen hint once.
+  try {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+    const standalone = window.matchMedia("(display-mode: standalone)").matches
+      || navigator.standalone === true;
+    if (isIOS && !standalone && !store.get("dr_ios_hint_shown", "")) {
+      store.set("dr_ios_hint_shown", "1");
+      setTimeout(() => showPwaBar("iOS: tap Share → “Add to Home Screen” to install", null, null, true), 2500);
+    }
+  } catch (e) {}
+}
+
+
 (async function init() {
   try {
-    // Register service worker for offline + push
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(() => {});
-    }
+    // Register service worker for offline + push (plus install/update UX)
+    setupPWA();
     if (window.__DEALS__) { DATA = normalizeDataset(window.__DEALS__); }
     else {
       const r = await fetch("deals.json");

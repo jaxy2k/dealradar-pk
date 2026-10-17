@@ -17,10 +17,12 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run adapter + integration tests (gate)
+      - name: Run adapter + integration + PWA tests (gate)
         run: |
           python3 test_shopify_adapter.py
           python3 test_shopify_integration.py
+          python3 test_pwa.py
+          node test_sw_runtime.js
 
       - name: Run scraper
         run: |
