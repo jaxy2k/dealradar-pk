@@ -1,5 +1,5 @@
 /* DealRadar PK Service Worker — offline cache + push */
-const CACHE_NAME = 'dealradar-v2';
+const CACHE_NAME = 'dealradar-v3';
 const ASSETS = [
   '/',
   '/index.html',
@@ -26,17 +26,16 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // Network-first: always try the live server, fall back to cache only offline.
+  // (Cache-first previously pinned a stale app.js on users' phones.)
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const fetched = fetch(e.request).then(response => {
-        if (response.ok && e.request.url.includes(self.location.origin)) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-      return cached || fetched;
-    })
+    fetch(e.request).then(response => {
+      if (response.ok && e.request.url.includes(self.location.origin)) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+      }
+      return response;
+    }).catch(() => caches.match(e.request).then(cached => cached || caches.match('/index.html')))
   );
 });
 
