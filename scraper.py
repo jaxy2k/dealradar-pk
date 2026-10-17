@@ -20,6 +20,12 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("scraper")
 
+try:
+    from shopify_adapter import SHOPIFY_BRANDS, extract_product_deals
+except Exception as _e:  # adapter optional; pipeline must not die without it
+    SHOPIFY_BRANDS, extract_product_deals = [], None
+    log.warning(f"Shopify adapter unavailable: {_e}")
+
 BASE = pathlib.Path(__file__).parent
 DATA = BASE / "data"
 DATA.mkdir(exist_ok=True)
@@ -516,6 +522,40 @@ def scrape_rss_feed(source_name, url):
     return deals
 
 
+def fetch_shopify_brand(brand):
+    """Fetch one brand's Shopify products.json and extract product deals.
+    Failure-isolated: any error returns [] so one bad source never breaks the run."""
+    if extract_product_deals is None:
+        return []
+    try:
+        r = requests.get(brand["products_url"], timeout=25,
+                         headers={"User-Agent": HEADERS_TEMPLATE["User-Agent"]})
+        r.raise_for_status()
+        return extract_product_deals(brand, r.json())
+    except Exception as e:
+        log.warning(f"  Shopify {brand['name']}: fetch failed (skipped): {e}")
+        return []
+
+
+def scrape_all_shopify():
+    """Scrape all configured Shopify brands concurrently -> merged product deals."""
+    if not SHOPIFY_BRANDS:
+        return []
+    log.info(f"Scraping {len(SHOPIFY_BRANDS)} Shopify brand feeds for product deals...")
+    out = []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futures = {ex.submit(fetch_shopify_brand, b): b for b in SHOPIFY_BRANDS}
+        for fut in as_completed(futures):
+            b = futures[fut]
+            try:
+                deals = fut.result()
+                out.extend(deals)
+                log.info(f"  Shopify {b['name']}: {len(deals)} product deals")
+            except Exception as e:
+                log.warning(f"  Shopify {b['name']}: error: {e}")
+    return out
+
+
 def scrape_all_rss():
     """Scrape all RSS feeds concurrently, return merged deal list."""
     log.info("Scraping RSS news feeds for govt/public deals...")
@@ -660,6 +700,16 @@ def run():
             combined_ids.add(d["id"])
     log.info(f"News deals merged: {len(news_deals)}")
 
+    # ---- Shopify product deals (official brand stores, price-drop verified) ----
+    shopify_deals = scrape_all_shopify()
+    shopify_ids = set()
+    for d in shopify_deals:
+        if d["id"] not in combined_ids:
+            unique.append(d)
+            combined_ids.add(d["id"])
+            shopify_ids.add(d["brand"])
+    log.info(f"Shopify product deals merged: {len(shopify_deals)}")
+
     # Build brands
     brands = []
     brand_ids = set()
@@ -692,6 +742,12 @@ def run():
                     "brand_type": bank_info["brand_type"],
                     "color": bank_info["color"],
                     "logo": logo_map.get(bid, ""),
+                })
+            elif SHOPIFY_BRANDS and bid in {b["id"] for b in SHOPIFY_BRANDS}:
+                sb = next(b for b in SHOPIFY_BRANDS if b["id"] == bid)
+                brands.append({
+                    "id": bid, "name": sb["name"], "brand_type": sb["brand_type"],
+                    "color": sb["color"], "logo": logo_map.get(f"{bid}.png", "") or logo_map.get(bid, ""),
                 })
             else:
                 cb = next((b for b in static_brands if b["id"] == bid), None)
