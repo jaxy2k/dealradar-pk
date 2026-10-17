@@ -218,7 +218,7 @@ a{color:var(--accent2);text-decoration:none}
 .tab.active::after{content:'';position:absolute;top:0;left:20%;right:20%;height:2.5px;border-radius:2px;background:var(--accent)}
 
 /* ===== FAB ===== */
-.fab{position:fixed;right:calc(50% - 199px);bottom:80px;z-index:36;width:52px;height:52px;border-radius:16px;
+.fab{position:fixed;right:calc(50% - 199px);bottom:calc(80px + env(safe-area-inset-bottom));z-index:36;width:52px;height:52px;border-radius:16px;
   background:var(--grad-main);color:#fff;border:none;font-size:22px;font-weight:700;
   box-shadow:0 6px 20px rgba(22,163,74,.35);cursor:pointer;transition:var(--spring)}
 .fab:active{transform:scale(.88)}
