@@ -20,6 +20,226 @@ const store = {
 // Live API configuration — set to your server URL for live data
 const API_URL = window.__API_URL__ || "";  // e.g. "https://your-server.com" or "" for same-origin
 
+// ---- Supabase config (safe: anon key is a public client key) ----
+const SUPABASE = {
+  url: window.__SUPABASE_URL__ || "https://ygcwdwlwxcjqlxdshvup.supabase.co",
+  anonKey: window.__SUPABASE_ANON__ || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlnY3dkd2x3eGNqcWx4ZHNodnVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1MTY3NTUsImV4cCI6MjEwNjA5Mjc1NX0.ijAhLsZc1PpucE3an58wvvGfw1EA59CRexrVpf9uf28"
+};
+
+// ---- Supabase client (PostgREST + GoTrue anon auth, plain fetch — no SDK) ----
+const SB = {
+  enabled: !!(SUPABASE.url && SUPABASE.anonKey),
+  userId: null,
+  accessToken: null,
+  _headers(extra) {
+    const h = {
+      "apikey": SUPABASE.anonKey,
+      "Content-Type": "application/json",
+      ...(extra || {})
+    };
+    if (this.accessToken) h["Authorization"] = "Bearer " + this.accessToken;
+    else h["Authorization"] = "Bearer " + SUPABASE.anonKey;
+    return h;
+  },
+  // Anonymous sign-in: silent device identity, no login wall (per "minimal effort" spec)
+  async signInAnon() {
+    if (!this.enabled) return null;
+    try {
+      const r = await fetch(SUPABASE.url + "/auth/v1/signup", {
+        method: "POST",
+        headers: { "apikey": SUPABASE.anonKey, "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      if (!r.ok) throw new Error("anon signup " + r.status);
+      const j = await r.json();
+      this.accessToken = j.access_token; this.userId = j.user?.id;
+      store.set("dr_sb_token", this.accessToken || "");
+      store.set("dr_sb_uid", this.userId || "");
+      return this.userId;
+    } catch (e) { console.warn("SB anon signin failed:", e.message); return null; }
+  },
+  restoreSession() {
+    this.accessToken = store.get("dr_sb_token", "") || null;
+    this.userId = store.get("dr_sb_uid", "") || null;
+  },
+  async from(table) {
+    return {
+      select: async (cols = "*", qs = "") => {
+        const r = await fetch(`${SUPABASE.url}/rest/v1/${table}?select=${cols}${qs}`, { headers: this._headers({ "Accept": "application/json" }) });
+        if (!r.ok) throw new Error(`${table} select ${r.status}`);
+        return r.json();
+      },
+      insert: async (rows) => {
+        const r = await fetch(`${SUPABASE.url}/rest/v1/${table}`, {
+          method: "POST",
+          headers: this._headers({ "Prefer": "return=representation, resolution=merge-duplicates" }),
+          body: JSON.stringify(rows)
+        });
+        if (!r.ok) throw new Error(`${table} insert ${r.status}: ${await r.text()}`);
+        return r.json();
+      },
+      update: async (patch, qs) => {
+        const r = await fetch(`${SUPABASE.url}/rest/v1/${table}?${qs}`, {
+          method: "PATCH",
+          headers: this._headers({ "Prefer": "return=representation" }),
+          body: JSON.stringify(patch)
+        });
+        if (!r.ok) throw new Error(`${table} update ${r.status}`);
+        return r.json();
+      }
+    };
+  }
+};
+
+// Map a DB deal row → the app's deal object shape (reverse of normalizeDeal)
+function dbDealToApp(row) {
+  return {
+    id: row.id, brand: row.merchant_id || row.brand || "community",
+    brand_brand_type: "brand", category: row.category || "all",
+    title: row.title, summary: row.summary || "",
+    discount: row.discount || null,
+    code: row.code || null,
+    eligibility: { payment: [], merchant: row.brand || "", user: "any", min_spend: null },
+    cities: row.cities || ["All Pakistan"],
+    valid_from: row.starts_at ? row.starts_at.slice(0, 10) : (row.created_at || "").slice(0, 10),
+    valid_until: row.expires_at ? row.expires_at.slice(0, 10) : null,
+    steps: row.steps || [], exclusions: row.exclusions || [],
+    campaign_type: row.campaign_type || null,
+    collect_required: !!row.collect_required, app_only: !!row.app_only, restrictions: row.restrictions || null,
+    created_at: row.created_at, starts_at: row.starts_at, expires_at: row.expires_at,
+    last_verified_at: row.last_verified_at, first_seen_at: row.first_seen_at, last_seen_at: row.last_seen_at,
+    source: { type: row.source_type, platform: row.source_name || row.source_type, url: row.source_url || "", status: row.verification, captured_at: row.created_at },
+    source_type: row.source_type, source_name: row.source_name,
+    status: row.status, verification: row.verification, confidence: row.confidence ?? 0.5,
+    founder_verified: !!row.founder_verified, extraction_confidence: row.extraction_confidence,
+    verification_count: row.verification_count || 0, failure_count: row.failure_count || 0,
+    merchant_info: { name: row.brand },
+    community: { votes: 0, worked: row.verification_count || 0, failed: row.failure_count || 0, saves: 0, reports_expired: row.reports_expired || 0, spotted_by: row.source_type }
+  };
+}
+// Map an app deal object → a DB row (for founder/screenshot/community submissions)
+function appDealToDb(d) {
+  return {
+    id: d.id, merchant_id: d.brand, brand: d.merchant_info?.name || d.brand,
+    title: d.title, summary: d.summary, category: d.category, cities: d.cities || [],
+    discount: d.discount, code: d.code, steps: d.steps || [], exclusions: d.exclusions || [],
+    campaign_type: d.campaign_type, collect_required: !!d.collect_required, app_only: !!d.app_only,
+    restrictions: d.restrictions,
+    starts_at: d.starts_at, expires_at: d.expires_at, first_seen_at: d.first_seen_at, last_seen_at: d.last_seen_at,
+    source_type: d.source?.type || "community", source_name: d.source?.platform || null, source_url: d.source?.url || null,
+    status: d.status || "reviewing", verification: d.verification || "pending",
+    confidence: d.confidence ?? 0.5, founder_verified: !!d.founder_verified,
+    extraction_confidence: d.extraction_confidence ?? null,
+    verification_count: d.verification_count || 0, failure_count: d.failure_count || 0,
+    reports_expired: d.community?.reports_expired || 0,
+    submitted_by: SB.userId, created_at_client: new Date().toISOString()
+  };
+}
+
+// ---- Supabase sync layer (writes go live; reads merge into the feed) ----
+// Failed pushes are queued in localStorage and replayed on boot/online/fetch.
+function syncQueue() { try { return JSON.parse(store.get("dr_sync_queue", "[]")); } catch { return []; } }
+function syncQueuePush(item) {
+  const q = syncQueue();
+  if (item.deal && q.some(x => x.kind === item.kind && x.deal && x.deal.id === item.deal.id)) return;
+  q.push(item);
+  try { store.set("dr_sync_queue", JSON.stringify(q.slice(-50))); } catch (e) {}
+}
+async function flushSyncQueue() {
+  if (!SB.enabled) return;
+  const q = syncQueue();
+  if (!q.length) return;
+  const remaining = [];
+  for (const item of q) {
+    try {
+      if (item.kind === "deal") await Sync._pushDeal(item.deal, item.profile, true);
+      else if (item.kind === "vote") await Sync._pushVote(item.deal, item.voteType, true);
+    } catch (e) { remaining.push(item); }
+  }
+  try { store.set("dr_sync_queue", JSON.stringify(remaining)); } catch (e) {}
+}
+const Sync = {
+  // Push a locally-created deal (founder/screenshot/community) to Supabase.
+  // On failure the payload is queued for replay — user data is never dropped.
+  async pushDeal(d, merchantProfile) {
+    if (!SB.enabled) { syncQueuePush({ kind: "deal", deal: d, profile: merchantProfile || null }); return false; }
+    const ok = await this._pushDeal(d, merchantProfile, false);
+    if (!ok) syncQueuePush({ kind: "deal", deal: d, profile: merchantProfile || null });
+    return ok;
+  },
+  async _pushDeal(d, merchantProfile, rethrow) {
+    try {
+      // Merchant insert is best-effort: a duplicate (brand already exists
+      // server-side) must NOT block the deal insert.
+      if (merchantProfile) {
+        try {
+          await SB.from("merchants").insert([{
+            id: merchantProfile.id, name: merchantProfile.name, brand_type: merchantProfile.brand_type,
+            color: merchantProfile.color, logo: merchantProfile.logo, created_by: d.source?.type === "founder" ? "founder" : "community"
+          }]);
+        } catch (me) {
+          if (!/23505|duplicate|unique/i.test(me.message)) console.warn("merchant upsert skipped:", me.message);
+        }
+      }
+      await SB.from("deals").insert([appDealToDb(d)]);
+      return true;
+    } catch (e) {
+      if (rethrow) throw e;
+      console.warn("pushDeal failed (queued for retry):", e.message);
+      return false;
+    }
+  },
+  // Record a verification vote; failures are queued for replay too
+  async pushVote(d, voteType) {
+    if (!SB.enabled) { syncQueuePush({ kind: "vote", deal: { id: d.id }, voteType }); return false; }
+    const ok = await this._pushVote(d, voteType, false);
+    if (!ok) syncQueuePush({ kind: "vote", deal: { id: d.id }, voteType });
+    return ok;
+  },
+  async _pushVote(d, voteType, rethrow) {
+    try {
+      await SB.from("verifications").insert([{ deal_id: d.id, vote_type: voteType, user_id: SB.userId }]);
+      const patch = { last_verified_at: new Date().toISOString() };
+      if (voteType === "working") patch.verification_count = (d.verification_count || 0) + 1;
+      if (voteType === "expired") { patch.failure_count = (d.failure_count || 0) + 1; patch.reports_expired = (d.community?.reports_expired || 0); }
+      if (voteType === "wrong_price" || voteType === "wrong_code") patch.failure_count = (d.failure_count || 0) + 1;
+      await SB.from("deals").update(patch, `id=eq.${encodeURIComponent(d.id)}`);
+      return true;
+    } catch (e) {
+      if (rethrow) throw e;
+      console.warn("pushVote failed (queued for retry):", e.message);
+      return false;
+    }
+  },
+  // Pull shared deals from Supabase and merge into the local feed
+  async pullDeals() {
+    if (!SB.enabled) return 0;
+    try {
+      // pull community merchant profiles first so names resolve
+      try {
+        const merchants = await SB.from("merchants").select("*", "&limit=200");
+        const bIds = new Set(DATA.brands.map(b => b.id));
+        merchants.forEach(m => {
+          if (m.id && !bIds.has(m.id)) {
+            DATA.brands.push({ id: m.id, name: m.name, brand_type: m.brand_type || "merchant", color: m.color || "#7c5cff", logo: m.logo || null, merchant_profile: { created_at: m.created_at, created_by: m.created_by || "community", deal_count: m.deal_count || 0 } });
+            bIds.add(m.id);
+          }
+        });
+      } catch (e) { /* merchants optional */ }
+      const rows = await SB.from("deals").select("*", "&order=created_at.desc&limit=200");
+      if (!rows.length) return 0;
+      const ids = new Set(DATA.deals.map(d => d.id));
+      let added = 0;
+      rows.forEach(r => {
+        if (r.status === "flagged") return;
+        if (!ids.has(r.id)) { DATA.deals.push(normalizeDeal(dbDealToApp(r))); added++; }
+      });
+      return added;
+    } catch (e) { console.warn("pullDeals failed:", e.message); return 0; }
+  }
+};
+window.__SB = SB; window.__Sync = Sync; // exposed for debugging / Android bridge
+
 // i18n: English / Urdu
 const I18N = {
   en: {
@@ -322,7 +542,7 @@ const AI = {
 
     // Extract category — English + Roman Urdu + Urdu
     const catMap = [
-      [/(food|khana|khane|khaana|eat|dinner|lunch|breakfast|restaurant|pizza|burger|bbq|biryan|کھانا|کھانے|ریسٹورنٹ)/, "food"],
+      [/(food|khana|khane|khaana|\beat\b|\beats\b|eating|dinner|lunch|breakfast|restaurant|pizza|burger|bbq|biryan|کھانا|کھانے|ریسٹورنٹ)/, "food"],
       [/(shop|kharid|shopping|buy|store|mall|brand|cloth|kapre|kapde|fashion|خرید|خریداری|شاپنگ|کپڑے)/, "shopping"],
       [/(fuel|petrol|diesel|pump|پیٹرول|ایندھن)/, "fuel"],
       [/(grocery|groceries|rashan|saman|kirana|راشن|سامان)/, "grocery"],
@@ -367,6 +587,49 @@ const AI = {
     // Greetings / help
     if (!query.trim() || /^(hi|hello|salam|assalam|السلام|hey|kya hal|kaise ho|کیسے ہو)/.test(query.toLowerCase().trim())) {
       return { text: "Walaikum assalam! 👋 I'm your deal radar. Ask me things like:\n• \"best food deals in Karachi\"\n• \"lahore mein 50% discount\"\n• \"hbl ki deals\"\n• \"govt subsidies kya hain?\"\n• \"solar subsidy\"\n• \"aaj kya deals hain?\"", deals: [] };
+    }
+
+    // FAQ — keyword clusters (app how-to questions, not deal queries)
+    const FAQ = [
+      [/(how (do|does|to)|kaise|howto).*(submit|post|add|share|spot)|deal (kaise|how).*(add|post|submit|share)|screenshot.*(submit|post|kaise)/,
+        "📸 Easiest way: tap the big **+ Submit** button, drop a screenshot of the deal. Our AI reads it and fills everything in — you just verify the details. No screenshot? Tap \"✏️ Type it yourself\" for the quick form."],
+      [/(verify|vote|worked|didn.?t work|issue with|galat|correct ya)/,
+        "🛡️ Every deal shows a trust badge. Open a deal and tap **✅ Worked** or **❌ Expired/Issue** — your votes keep the community honest. Deals with bad reports sink automatically."],
+      [/(notif|alert|remind|yad dahan|cancel.*notif|band.*kar)/,
+        "🔔 Tap the bell 🔔 to see alerts. To control them: Settings → Notifications. Expired-deal alerts for deals you saved appear automatically."],
+      [/(offline|internet|nahi chal|\bhang\b|\bhung\b|\bcrash|\bcrashed\b|problem with app|app (na|not|doesnt|doesn.t|won.t|wont) work)/,
+        "📴 Works offline too — deals you've already seen stay cached. If something looks stuck, pull down to refresh. Your pending submits are queued and sent as soon as you're back online."],
+      [/(change|switch|convert).{0,20}(language|urdu|english)|language.{0,20}(change|switch|karo|kaise)|(urdu|english) (mein|me |main|into|karo|kar)/,
+        "🌐 Switch anytime: the **اُ / EN** toggle in the header flips the whole app between Urdu and English."],
+      [/(saved|wallet|bookmark|my deal|kahan.*mile|where.*see.*deal)/,
+        "💛 Saved deals live in your **Wallet** tab (bottom bar). Spotted deals — yours and the community's — are under the **Spotted** tab."],
+      [/(safe|privacy|data|password|account|login|signup|sign in|register|mera data)/,
+        "🔐 No account needed. Your saves live only on your device. What you submit goes to the community feed — never share personal info in a screenshot."],
+      [/(who (made|created)|founder|about (app|us)|kis ne banaya|team|dealradar)/,
+        "👑 DealRadar PK is a community-powered deal radar for Pakistan — founder-seeded deals wear the 👑 badge, and every user can spot, verify and vote."],
+    ];
+    for (const [re, ans] of FAQ) {
+      if (re.test(q)) return { text: ans, deals: [] };
+    }
+
+    // Deal-detail lookup — "tell me about <brand> deal", "<brand> ki deal kya hai"
+    const detailMatch = q.match(/\b(foodpanda|daraz|careem|bykea|gloredeals?|easypaisa|jazzcash|hbl|ubl|meezan|alfalah|mcb|askari|kibla|nesto|karachi wala|burger ?labz|domino|kfc|mcdonald|pizza hut|sapphire|generate|shinny|barbeque ?nation)\b/);
+    if (detailMatch && /(deal|offer|discount|code|kya|batao|detail|condition|kitne|terms|expiry|valid)/.test(q)) {
+      const name = detailMatch[1].replace(/\s/g, "");
+      const hit = active.find(d => ((d.brand || "") + " " + (d.title || "") + " " + (d.id || "")).toLowerCase().replace(/\s/g, "").includes(name));
+      if (hit) {
+        const disc = hit.discount?.kind === "percent" ? `${hit.discount.value}% off` : `Rs ${hit.discount.value} off`;
+        const code = hit.code ? ` | Code: ${hit.code}` : "";
+        const until = hit.valid_until ? ` | Valid till ${hit.valid_until}` : "";
+        const cond = hit.eligibility?.min_spend ? `\nMinimum spend: Rs ${hit.eligibility.min_spend}.` : "";
+        return { text: `📌 ${hit.title} (${hit.brand}) — ${disc}${code}${until}\nCities: ${(hit.cities || []).join(", ")}\n${hit.summary || ""}${cond}`, deals: [hit] };
+      }
+    }
+
+    // Honesty guard — off-topic question with no deal signal at all
+    const DEAL_WORDS = /(deal|offer|discount|sale|coupon|code|save|cheap|sasta|kharid|khana|food|shop|bank|card|subsidy|govt|sarkar|load|recharge|pizza|burger|grocery|travel|flight|hotel|percent|%|rs|rupee|karachi|lahore|islamabad|pindi|multan|faisal|peshawar|quetta|khaana|khareed|free)/;
+    if (!city && !bankId && !category && !pctMatch && !amtMatch && !DEAL_WORDS.test(q) && !/[0-9]/.test(q)) {
+      return { text: "🤖 I'm DealRadar's deal bot — I only know about deals, discounts and savings in Pakistan. Things like \"best food deals in Lahore\" or \"solar subsidy\" work great; anything else I honestly don't!", deals: [] };
     }
 
     if (!top.length) {
@@ -528,6 +791,32 @@ function normalizeDataset(data) {
   (data?.deals || []).forEach(normalizeDeal);
   return data;
 }
+// ---- local persistence for user-added deals (founder / screenshot / community) ----
+// Bridges the gap until Supabase. Stored deals are merged back in on load.
+const LOCAL_DEAL_PREFIX = /^(f|s|u)\d+$/;
+function isLocalDeal(d) { return LOCAL_DEAL_PREFIX.test(String(d.id)); }
+function loadLocalDeals() { try { return JSON.parse(store.get("dr_local_deals", "[]")); } catch { return []; } }
+function persistLocalDeals() {
+  try { store.set("dr_local_deals", JSON.stringify(DATA.deals.filter(isLocalDeal))); } catch (e) {}
+}
+function restoreLocalDeals() {
+  const bIds = new Set(DATA.brands.map(b => b.id));
+  deviceBrands().forEach(b => { if (!bIds.has(b.id)) { DATA.brands.push(b); bIds.add(b.id); } });
+  const locals = loadLocalDeals();
+  if (!locals.length) return;
+  const ids = new Set(DATA.deals.map(d => d.id));
+  locals.forEach(d => { if (!ids.has(d.id)) DATA.deals.push(d); });
+  DATA.deals.forEach(normalizeDeal);
+  locals.forEach(d => {
+    const mp = d.__brand_profile;
+    if (mp && !bIds.has(mp.id)) { DATA.brands.push(mp); bIds.add(mp.id); }
+  });
+}
+// Stamp a newly-created merchant profile onto its deal, then persist all local deals.
+function saveLocalDeal(deal, resolution) {
+  if (resolution?.isNew && resolution.profile) deal.__brand_profile = resolution.profile;
+  persistLocalDeals();
+}
 function lifecycleOf(d) {
   const left = msLeft(d);
   if (left <= 0) return "expired";
@@ -637,7 +926,8 @@ function tabDeals() {
     case "ending": return all.filter(d => d.status !== "evergreen" && (d.discount?.value || 0) > 0 && msLeft(d) > 0 && daysUntil(d) <= 3)
       .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
     case "evergreen": return all.filter(d => d.status === "evergreen").sort((a, b) => (b.community?.worked || 0) - (a.community?.worked || 0));
-    case "spotted": return all.filter(d => d.status === "spotted").sort((a, b) => (b.community?.votes || 0) - (a.community?.votes || 0));
+    case "spotted": return all.filter(d => d.status === "spotted" || d.status === "reviewing" || d.source?.type === "community" || d.source?.type === "founder" || isLocalDeal(d))
+      .sort((a, b) => new Date(b.first_seen_at || b.source?.captured_at || 0) - new Date(a.first_seen_at || a.source?.captured_at || 0));
     case "calendar": return all.filter(d => d.status !== "evergreen" && d.status !== "spotted" && (d.discount?.value || 0) > 0 && msLeft(d) > 0)
       .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
   }
@@ -692,6 +982,21 @@ const Notif = {
       }
     });
     if (changed) store.set("dr_notif_seen", JSON.stringify(seen));
+  },
+  // Saved deal just expired — tell the user so they don't act on a dead deal.
+  checkExpiredSaved() {
+    if (!DATA) return;
+    const seen = JSON.parse(store.get("dr_notif_expired_seen", "{}"));
+    let changed = false;
+    DATA.deals.forEach(d => {
+      if (!state.saved.has(d.id) || seen[d.id] || d.status === "evergreen") return;
+      if (msLeft(d) <= 0) {
+        seen[d.id] = 1; changed = true;
+        addNotification(`⌛ "${d.title}" has expired.`);
+        this.fire("⌛ Saved deal expired", `"${d.title}" is no longer valid.`);
+      }
+    });
+    if (changed) store.set("dr_notif_expired_seen", JSON.stringify(seen));
   }
 };
 
@@ -771,8 +1076,22 @@ function scheduleRender() {
   });
 }
 
+let cityFallbackActive = false;
+function cityFallbackBanner() {
+  if (!cityFallbackActive) return "";
+  return `<div class="city-fallback">📍 Nothing live in <b>${esc(state.city)}</b> right now — showing deals that work across Pakistan. Spotted something local? Tap ＋ and be the first to share it!</div>`;
+}
 function renderFeed() {
-  const list = tabDeals();
+  let list = tabDeals();
+  let cityFallback = false;
+  if (!list.length && state.city !== "All") {
+    const savedCity = state.city;
+    state.city = "All";
+    list = tabDeals().filter(d => d.cities.includes("All Pakistan"));
+    state.city = savedCity;
+    cityFallback = list.length > 0;
+  }
+  cityFallbackActive = cityFallback;
   if (!list.length) {
     if (state.tab === "foryou") { $("#feed").innerHTML = renderForYouTab([]); return; }
     const emptyMsgs = {
@@ -804,7 +1123,7 @@ function renderFeedContent(list) {
   if (state.tab === "ending") { $("#feed").innerHTML = renderEndingTab(list); return; }
   if (state.tab === "foryou") { $("#feed").innerHTML = renderForYouTab(list); return; }
   if (state.tab === "evergreen") { $("#feed").innerHTML = renderEvergreenTab(list); return; }
-  if (state.tab === "spotted") { $("#feed").innerHTML = renderSpottedTab(list); return; }
+  if (state.tab === "spotted") { $("#feed").innerHTML = cityFallbackBanner() + renderSpottedTab(list); return; }
 
   // Search and category browsing use a focused results list instead of the dashboard.
   if (state.q.trim() || state.cat !== "all") {
@@ -1126,6 +1445,15 @@ function renderSpendOptimizer() {}
 function renderAll() { renderBanner(); renderChips(); renderFeed(); renderBell(); syncTabs(); $("#q").placeholder = t("search"); renderSearchSuggestions(); }
 
 // ---- live ticking countdown ----
+let lastStatusFingerprint = "";
+function statusFingerprint() {
+  let fp = "";
+  for (const d of DATA.deals) {
+    if (d.status === "evergreen" || isHidden(d)) continue;
+    fp += d.id + (msLeft(d) <= 0 ? "E" : d.status === "spotted" || d.status === "reviewing" ? "R" : "A") + ";";
+  }
+  return fp;
+}
 function startTicking() {
   if (tickInterval) clearInterval(tickInterval);
   tickInterval = setInterval(() => {
@@ -1139,6 +1467,11 @@ function startTicking() {
       el.textContent = cd.text;
       el.className = `pill ${cd.cls}`;
     });
+    const fp = statusFingerprint();
+    if (fp !== lastStatusFingerprint) {
+      if (lastStatusFingerprint) { state.feedRendered = false; renderAll(); Notif.checkExpiredSaved(); }
+      lastStatusFingerprint = fp;
+    }
     Notif.checkExpiring();
   }, 60000); // tick every minute
 }
@@ -1209,9 +1542,15 @@ function openDeal(d) {
     ${allRows.map(([k, v]) => `<div class="row"><span>${k}</span><span>${v}</span></div>`).join("")}
     ${d.exclusions?.length ? `<h4 class="steps-title">${t("terms")}</h4><ul>${d.exclusions.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
     <div class="sheet-actions">
+      <div class="verify-block">
+        <div class="verify-head">Did this deal work? <span class="vtier vt-${verificationTier(d).cls}">${verificationTier(d).label}</span></div>
+        <div class="verify-btns">
+          ${VERIFY_TYPES.map(v => `<button class="vbtn v-${v.key}${myVote(d.id) === v.key ? " active" : ""}" data-verify="${v.key}">${v.label}</button>`).join("")}
+        </div>
+        <div class="verify-foot">👍 ${d.community?.worked || 0} worked · 👎 ${d.community?.failed || 0} didn't</div>
+      </div>
       <div class="sheet-quick">
         <button class="qbtn ${state.voted.has(d.id) ? 'active' : ''}" data-act="vote">▲ Hot</button>
-        <button class="qbtn" data-act="worked">✓ Worked</button>
         <button class="qbtn ${state.saved.has(d.id) ? 'active' : ''}" data-act="save">🔔 Alert</button>
       </div>
       <div class="sheet-curate">
@@ -1219,24 +1558,25 @@ function openDeal(d) {
         <button class="cbtn hide" data-curate="hide">${state.hiddenBrands.has(d.brand) ? "Show" : "Hide"} ${b.name} deals</button>
       </div>
       <a class="sharebtn" href="${wa}" target="_blank" rel="noopener">${t("shareOnWhatsApp")}</a>
-      <button class="reportbtn" data-report="${d.id}">${t("reportExpired")}</button>
     </div>
     <p class="fine">Always confirm at the merchant. DealRadar aggregates public offers and is not affiliated with ${b.name}.</p>`;
   showSheet();
 
-  // wire report button
-  const rb = $("#sheet .reportbtn");
-  if (rb) rb.addEventListener("click", () => {
-    d.community.reports_expired = (d.community.reports_expired || 0) + 1;
-      trustCache.clear();
-    if (d.community.reports_expired >= 3) {
-      addNotification(`"${d.title}" hidden after 3 expired reports`);
-      toast(t("dealHidden"));
-      closeSheet(); renderFeed();
-    } else {
-      toast(t("reported", {n: d.community.reports_expired}));
+  // wire verification buttons (Phase 4)
+  $$("#sheet [data-verify]").forEach(btn => btn.addEventListener("click", () => {
+    const key = btn.dataset.verify;
+    applyVerification(d, key);
+    if (key === "working") {
+      const est = d.discount?.kind === "percent" ? Math.min((d.discount.value || 0) * 20, d.discount.cap || 500) : (d.discount?.value || 100);
+      state.savings += est; store.set("dr_savings", JSON.stringify(state.savings)); renderSavings();
     }
-  });
+    if (key === "expired" && (d.community.reports_expired || 0) >= 3) {
+      addNotification(`"${d.title}" hidden after ${d.community.reports_expired} expired reports`);
+      toast(t("dealHidden")); closeSheet(); renderFeed(); return;
+    }
+    toast("Thanks — feedback recorded");
+    closeSheet(); setTimeout(() => openDeal(d), 240); // reopen to refresh counts/tier
+  }));
 
   // wire curation buttons
   $$("#sheet [data-curate]").forEach(btn => btn.addEventListener("click", () => {
@@ -1326,9 +1666,26 @@ function normMerchant(s) {
 function userAliases() {
   try { return JSON.parse(store.get("dr_merchant_aliases", "{}")); } catch { return {}; }
 }
-function resolveMerchant(rawName, category) {
+// Same offer within 72h = reinforce the existing card, don't fork community signal.
+function findDuplicateDeal(brandId, discount, code) {
+  const cutoff = NOW.getTime() - 72 * 36e5;
+  return DATA.deals.find(d =>
+    d.brand === brandId && msLeft(d) > 0 &&
+    new Date(d.first_seen_at || d.source?.captured_at || 0).getTime() >= cutoff &&
+    (code ? d.code === code : true) &&
+    (discount ? d.discount?.kind === discount.kind && d.discount?.value === discount.value : !d.discount)
+  ) || null;
+}
+function reinforceDeal(d) {
+  d.community.votes = (d.community.votes || 0) + 1;
+  d.last_seen_at = NOW.toISOString();
+  normalizeDeal(d);
+  persistLocalDeals();
+  if (SB.enabled) SB.from("deals").update({ last_seen_at: d.last_seen_at }, `id=eq.${encodeURIComponent(d.id)}`).catch(() => {});
+}
+function resolveMerchant(rawName, category, aiPlatformId) {
   const key = normMerchant(rawName);
-  if (!key) return { brandId: "community", isNew: false, matched: null };
+  if (!key && !aiPlatformId) return { brandId: "community", isNew: false, matched: null };
   // 1. Exact brand id or name match
   let b = DATA.brands.find(x => x.id === key || normMerchant(x.name) === key);
   // 2. Built-in or user-taught alias
@@ -1339,25 +1696,39 @@ function resolveMerchant(rawName, category) {
     b = DATA.brands.find(x => x.name && (key.includes(normMerchant(x.name)) || normMerchant(x.name).includes(key)) && normMerchant(x.name).length >= 3);
   }
   if (b) return { brandId: b.id, isNew: false, matched: b.name };
-  // 4. Create a community merchant profile (restaurant/shop/brand organized under brands)
+  // 4. Recognized platform not yet in DATA.brands — promote with REAL color/type
+  const pl = (aiPlatformId && findPlatformById(aiPlatformId)) || findPlatformByName(rawName);
+  if (pl) {
+    const promoted = brandFromPlatform(pl);
+    if (!DATA.brands.find(x => x.id === promoted.id)) { DATA.brands.push(promoted); brandMap.clear(); }
+    rememberDeviceBrand(promoted);
+    return { brandId: promoted.id, isNew: true, matched: promoted.name, profile: promoted, ai_recognized: true };
+  }
+  // 5. Genuinely unknown merchant — clean community profile, stable color
   const brandId = key.slice(0, 20);
   const isRestaurant = ["food", "restaurant", "dining", "fastfood"].includes(category);
-  DATA.brands.push({
+  const profile = {
     id: brandId, name: rawName.trim(), brand_type: isRestaurant ? "restaurant" : "merchant",
-    color: "#7c5cff", logo: null,
+    color: stableColor(key), logo: null,
     merchant_profile: { created_at: NOW.toISOString(), created_by: "community", source: "user_submission", deal_count: 0 }
-  });
+  };
+  DATA.brands.push(profile);
+  rememberDeviceBrand(profile);
   brandMap.clear();
-  return { brandId, isNew: true, matched: null };
+  return { brandId, isNew: true, matched: null, profile };
 }
 
-// ---- submit ----
+// ---- submit (screenshot-first: AI reads, human confirms) ----
 function openSubmit() {
   pushNav("submit");
   $("#sheet").innerHTML = `<div class="grab"></div>
-    <h3>👀 I spotted a deal</h3>
-    <p class="sheet-summary">Help others not miss it. Submissions go to a verification queue, then appear in Spotted.</p>
-    <form class="form" id="submitForm">
+    <h3>📸 Got a deal screenshot?</h3>
+    <p class="sheet-summary">Drop it here — I read the brand, offer, code and expiry automatically. You just confirm.</p>
+    <div class="drop-zone ss-drop ss-hero" id="ssQuick"><div class="icon">🖼️</div><p><b>Tap to choose a screenshot</b><br><span class="ss-sub">Foodpanda, Daraz, bank offers… any deal image</span></p></div>
+    <input type="file" id="ssQuickInput" accept="image/*" hidden>
+    <div class="ss-or"><span>or</span></div>
+    <button class="ss-manual-toggle" id="manualToggle" type="button">✏️ Type it yourself</button>
+    <form class="form hidden" id="submitForm">
       <label>Brand / merchant</label><input name="brand" id="merchantInput" required placeholder="e.g. KFC, Easypaisa, Daraz" autocomplete="off">
       <div class="merchant-hint" id="merchantHint"></div>
       <label>Offer (title)</label><input name="title" required placeholder="e.g. 50% off with HBL debit">
@@ -1365,10 +1736,7 @@ function openSubmit() {
       <select name="category">${CATS.filter(c => c[0] !== "all").map(c => `<option value="${c[0]}">${c[1]}</option>`).join("")}</select>
       <label>City</label>
       <select name="city">${CITIES.slice(1).map(c => `<option>${c}</option>`).join("")}<option>All Pakistan</option></select>
-      <label>Valid until</label><input name="valid_until" type="date" required>
-      <label>Source link (Instagram / website / etc.)</label><input name="url" placeholder="https://…">
-      <label>How to avail (steps, one per line)</label><textarea name="steps" placeholder="1. Visit outlet&#10;2. Pay with card&#10;3. Discount applied"></textarea>
-      <label>Notes / terms</label><textarea name="summary" placeholder="Discount, cap, eligible cards, exclusions…"></textarea>
+      <label>Valid until <span class="opt">(optional — defaults to 24h)</span></label><input name="valid_until" type="date" readonly id="vuDate">
       <button class="submit" type="submit">Submit to Spotted</button>
     </form>
     <div class="founder-zone">
@@ -1376,6 +1744,25 @@ function openSubmit() {
       <button class="founder-btn" id="founderBtn" type="button">⚡ Add a flash deal (founder)</button>
     </div>`;
   showSheet();
+  // Screenshot is the primary path — pick image right here, no extra navigation
+  const quick = $("#ssQuick"), quickInput = $("#ssQuickInput");
+  quick.addEventListener("click", () => quickInput.click());
+  quickInput.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { closeSheet(); setTimeout(() => openScreenshotSubmit(ev.target.result, file), 260); };
+    reader.readAsDataURL(file);
+  });
+  // Date field must not open keyboard/calendar while scrolling — only on explicit tap
+  const vu = $("#vuDate");
+  vu.addEventListener("focus", () => { if (!vu.dataset.open) { vu.blur(); } });
+  vu.addEventListener("click", () => { vu.dataset.open = "1"; try { vu.showPicker(); } catch (e) {} });
+  $("#manualToggle").addEventListener("click", () => {
+    $("#submitForm").classList.toggle("hidden");
+    $("#manualToggle").classList.toggle("open");
+    if (!$("#submitForm").classList.contains("hidden")) $("#merchantInput").focus();
+  });
   $("#founderToggle").addEventListener("change", e => setFounder(e.target.checked));
   $("#founderBtn").addEventListener("click", () => { setFounder(true); $("#founderToggle").checked = true; closeSheet(); setTimeout(openFounderSubmit, 260); });
   const hintEl = $("#merchantHint");
@@ -1398,26 +1785,916 @@ function openSubmit() {
     const resolution = resolveMerchant(f.get("brand"), category);
     const brandId = resolution.brandId;
     const id = "u" + Date.now();
-    const steps = (f.get("steps") || "").split("\n").map(s => s.replace(/^\d+[.)]\s*/, "").trim()).filter(Boolean);
     const existing = DATA.brands.find(b => b.id === brandId);
     if (existing?.merchant_profile) existing.merchant_profile.deal_count = (existing.merchant_profile.deal_count || 0) + 1;
     DATA.deals.push({
       id, brand: brandId, brand_brand_type: existing?.brand_type || "brand", category,
-      title: (resolution.isNew ? "[Spotted] " : "") + f.get("title"), summary: f.get("summary") || "Community-submitted deal.",
+      title: (resolution.isNew ? "[Spotted] " : "") + f.get("title"), summary: "Community-submitted deal.",
       discount: null, eligibility: { payment: [], merchant: f.get("brand"), user: "any", min_spend: null },
-      cities: [f.get("city")], valid_from: NOW.toISOString().slice(0, 10), valid_until: f.get("valid_until"),
-      exclusions: ["Pending verification by DealRadar"], steps,
+      cities: [f.get("city")], valid_from: NOW.toISOString().slice(0, 10),
+      valid_until: f.get("valid_until") || new Date(NOW.getTime() + 24 * 36e5).toISOString().slice(0, 10),
+      exclusions: ["Pending verification by DealRadar"], steps: [],
       merchant_info: { name: f.get("brand"), resolved_brand: resolution.matched || null, new_profile: resolution.isNew },
-      source: { type: "community", platform: "user submission", url: f.get("url") || "", status: "pending", captured_at: NOW.toISOString() },
+      source: { type: "community", platform: "user submission", url: "", status: "pending", captured_at: NOW.toISOString() },
       status: "spotted", verification: "unverified", confidence: 0.5,
       community: { votes: 1, worked: 0, failed: 0, saves: 0, spotted_by: "@you", reports_expired: 0 }
     });
     normalizeDeal(DATA.deals[DATA.deals.length - 1]);
+    saveLocalDeal(DATA.deals[DATA.deals.length - 1], resolution);
+    Sync.pushDeal(DATA.deals[DATA.deals.length - 1], resolution.profile); // live to Supabase (fire-and-forget)
+    // FounderProfile memory: learn brand preference
+    const brandName = (f.get("brand") || "").trim().toLowerCase();
+    const plat = PK_PLATFORMS.find(x => x.name.toLowerCase() === brandName || x.keywords.some(k => k.length > 2 && brandName.includes(k)));
+    if (plat) FounderProfile.recordSubmission(plat.id, plat.segment, 0.7);
     const msg = resolution.isNew
       ? `Created merchant profile "${f.get("brand")}" and queued your deal`
       : `Attached to ${resolution.matched} — "${f.get("title")}" is in the queue`;
     addNotification(msg);
-    brandMap.clear(); closeSheet(); state.tab = "spotted"; syncTabs(); renderAll(); toast(t("addedSpotted"));
+    brandMap.clear(); closeSheet(); state.tab = "spotted"; state.city = "All"; state.cat = "all"; state.q = ""; $("#q").value = ""; syncTabs(); renderAll(); toast(t("addedSpotted"));
+  });
+}
+
+// ---- verification feedback loop (Phase 4) ----
+// Options: Working / Expired / Wrong price / Wrong code / Not applicable.
+// Votes are persisted locally (per device) until Supabase makes them shared.
+// Repeated "expired" reports demote a deal's prominence; corroboration promotes it.
+const VERIFY_TYPES = [
+  { key: "working", label: "✓ Working", delta: d => { d.community.worked = (d.community.worked || 0) + 1; d.verification_count = (d.verification_count || 0) + 1; } },
+  { key: "expired", label: "✕ Expired", delta: d => { d.community.failed = (d.community.failed || 0) + 1; d.failure_count = (d.failure_count || 0) + 1; d.community.reports_expired = (d.community.reports_expired || 0) + 1; } },
+  { key: "wrong_price", label: "₨ Wrong price", delta: d => { d.failure_count = (d.failure_count || 0) + 1; d.flags = (d.flags || []).concat("wrong_price"); } },
+  { key: "wrong_code", label: "🔑 Wrong code", delta: d => { d.failure_count = (d.failure_count || 0) + 1; d.flags = (d.flags || []).concat("wrong_code"); } },
+  { key: "not_applicable", label: "∅ Not applicable", delta: d => { d.flags = (d.flags || []).concat("not_applicable"); } }
+];
+function verifyLog() { try { return JSON.parse(store.get("dr_verify_log", "{}")); } catch { return {}; } }
+function saveVerifyLog(log) { store.set("dr_verify_log", JSON.stringify(log)); }
+function myVote(id) { return verifyLog()[id] || null; }
+// Promote/demote: verification tier computed from net community signal
+function verificationTier(d) {
+  const worked = d.community?.worked || 0, failed = d.community?.failed || 0;
+  const expiredReports = d.community?.reports_expired || 0;
+  if (d.founder_verified) {
+    if ((expiredReports >= 5 || failed >= 5) && worked === 0)
+      return { label: "👑⚠ Founder deal — users report issues", cls: "warn" };
+    return { label: "👑 Founder-verified", cls: "founder" };
+  }
+  if (expiredReports >= 3 || failed >= 3) return { label: "⚠ Likely expired", cls: "bad" };
+  if (worked >= 3 && failed === 0) return { label: "✓ Community confirmed", cls: "good" };
+  if (worked >= 1) return { label: "✓ Recently verified", cls: "good" };
+  if (failed >= 1) return { label: "⚠ Disputed", cls: "warn" };
+  return { label: "○ Unverified", cls: "neutral" };
+}
+function applyVerification(d, typeKey) {
+  const vt = VERIFY_TYPES.find(x => x.key === typeKey);
+  if (!vt) return;
+  const log = verifyLog();
+  if (log[d.id] === typeKey) return; // already cast this exact vote on this device
+  vt.delta(d);
+  d.last_verified_at = new Date().toISOString();
+  log[d.id] = typeKey; saveVerifyLog(log);
+  trustCache.clear();
+  // Promote a low-confidence spotted deal once corroborated by real users
+  if ((d.community.worked || 0) >= 2 && d.verification === "pending") {
+    d.verification = "corroborated"; d.status = "active"; d.confidence = Math.min(0.9, (d.confidence || 0.5) + 0.2);
+    addNotification(`"${d.title}" was confirmed working by the community`);
+  }
+  if (isLocalDeal(d)) persistLocalDeals();
+  Sync.pushVote(d, typeKey); // live to Supabase (fire-and-forget)
+}
+
+// ---- AI Brand Recognition Engine v2 (100+ Pakistani platforms) ----
+// 3-tier cascade: header OCR → header color → full-page keywords → format inference.
+// Handles: full app screenshots, cropped vouchers, SMS texts, promo images, stories.
+// Speed: header crop OCR (~200ms) + color analysis (~50ms) + keyword scan (~5ms).
+
+const PK_PLATFORMS = [
+  // ===== Q-COMMERCE / FOOD DELIVERY =====
+  { id:"foodpanda", name:"Foodpanda", segment:"qcommerce", colors:["#d70f64","#e91e8c","#c2185b","#f06292"], keywords:["pandamart","panda pro","search for restaurants","popular restaurants","carts","pick-up","order now","t&cs apply","save 25%","flash deals","limited time offers","grocery","health & beauty","cakes & bakery"], headerText:["foodpanda","panda"], format:"app" },
+  { id:"careem", name:"Careem", segment:"qcommerce", colors:["#00a94f","#00b359","#009944"], keywords:["careem","quik","careem quik","grocery","delivery","order food","restaurants"], headerText:["careem","quik"], format:"app" },
+  { id:"bykea", name:"Bykea", segment:"qcommerce", colors:["#ffd600","#f5c400","#ffeb3b"], keywords:["bykea","ride","delivery","parcel"], headerText:["bykea"], format:"app" },
+  { id:"keeta", name:"Keeta", segment:"qcommerce", colors:["#ff6b00","#ff8c00"], keywords:["keeta","food delivery"], headerText:["keeta"], format:"app" },
+  { id:"swvl", name:"Swvl", segment:"qcommerce", colors:["#7b2ff7","#9c4dff"], keywords:["swvl","bus","ride"], headerText:["swvl"], format:"app" },
+  { id:"indrive", name:"inDrive", segment:"qcommerce", colors:["#00c853","#00e676"], keywords:["indrive","in drive","ride","taxi"], headerText:["indrive","in drive"], format:"app" },
+  { id:"uber", name:"Uber", segment:"qcommerce", colors:["#000000","#1a1a1a"], keywords:["uber","ride","eats"], headerText:["uber"], format:"app" },
+  { id:"grab", name:"Grab", segment:"qcommerce", colors:["#00b14f","#00d15c"], keywords:["grab","food","delivery"], headerText:["grab"], format:"app" },
+
+  // ===== E-COMMERCE =====
+  { id:"daraz", name:"Daraz", segment:"ecommerce", colors:["#f57224","#f85606","#ff6a00","#e8590c"], keywords:["daraz","flash sale","collect","voucher","daraz mall","free shipping","daraz 11.11","daraz 12.12","coins","lazada"], headerText:["daraz"], format:"app" },
+  { id:"kravemart", name:"KraveMart", segment:"ecommerce", colors:["#ffd600","#f5c400","#e6b800","#fdd835"], keywords:["kravemart","vouchers","express","super store","just for you","min order","maximum discount","pan ka khokha","kfresh","limit per day"], headerText:["kravemart","kfresh"], format:"app" },
+  { id:"carrefour", name:"Carrefour", segment:"ecommerce", colors:["#8b1a1a","#a52a2a","#c62828","#b71c1c"], keywords:["carrefour","quality you can trust","free delivery","fresh","doorstep","skip intro","freshness delivered"], headerText:["carrefour"], format:"app" },
+  { id:"telemart", name:"Telemart", segment:"ecommerce", colors:["#e31e24","#ff1744","#d50000"], keywords:["telemart","electronics","gadgets"], headerText:["telemart"], format:"app" },
+  { id:"shophive", name:"ShopHive", segment:"ecommerce", colors:["#ff6600","#ff8800"], keywords:["shophive","shop hive"], headerText:["shophive"], format:"app" },
+  { id:"olx", name:"OLX", segment:"ecommerce", colors:["#002f34","#23e5db"], keywords:["olx","classifieds","sell","buy"], headerText:["olx"], format:"app" },
+  { id:"markaz", name:"Markaz", segment:"ecommerce", colors:["#6c5ce7","#a29bfe"], keywords:["markaz","reselling","dropshipping"], headerText:["markaz"], format:"app" },
+  { id:"bagallery", name:"Bagallery", segment:"ecommerce", colors:["#e91e63","#f06292"], keywords:["bagallery","fashion","bags"], headerText:["bagallery"], format:"app" },
+  { id:"outfitters", name:"Outfitters", segment:"ecommerce", colors:["#1a1a2e","#16213e"], keywords:["outfitters","clothing","fashion"], headerText:["outfitters"], format:"app" },
+  { id:"sapphire", name:"Sapphire", segment:"ecommerce", colors:["#2d3436","#636e72"], keywords:["sapphire","clothing","un-stitched"], headerText:["sapphire"], format:"app" },
+  { id:"khaadi", name:"Khaadi", segment:"ecommerce", colors:["#c0392b","#e74c3c"], keywords:["khaadi","fabric","un-stitched","lawn"], headerText:["khaadi"], format:"app" },
+  { id:"limelight", name:"Limelight", segment:"ecommerce", colors:["#8e44ad","#9b59b6"], keywords:["limelight","clothing","women"], headerText:["limelight"], format:"app" },
+  { id:"alkaram", name:"Alkaram Studio", segment:"ecommerce", colors:["#2c3e50","#34495e"], keywords:["alkaram","studio","fabric"], headerText:["alkaram"], format:"app" },
+  { id:"gulahmed", name:"Gul Ahmed", segment:"ecommerce", colors:["#1abc9c","#16a085"], keywords:["gul ahmed","gulahmed","fabric","lawn"], headerText:["gul ahmed"], format:"app" },
+  { id:"nishat", name:"Nishat Linen", segment:"ecommerce", colors:["#e74c3c","#c0392b"], keywords:["nishat","linen","fabric"], headerText:["nishat"], format:"app" },
+  { id:"sanaullas", name:"Sana Safinaz", segment:"ecommerce", colors:["#d4a574","#c9956c"], keywords:["sana safinaz","luxury","pret"], headerText:["sana safinaz"], format:"app" },
+  { id:"crossfit", name:"CrossFit Store", segment:"ecommerce", colors:["#2d3436","#636e72"], keywords:["crossfit","fitness","gym"], headerText:["crossfit"], format:"app" },
+  { id:"shophive2", name:"iShopping", segment:"ecommerce", colors:["#3498db","#2980b9"], keywords:["ishopping","electronics","mobile"], headerText:["ishopping"], format:"app" },
+  { id:"priceoye", name:"PriceOye", segment:"ecommerce", colors:["#f39c12","#e67e22"], keywords:["priceoye","price comparison","deals"], headerText:["priceoye"], format:"app" },
+  { id:"homeshopping", name:"Home Shopping", segment:"ecommerce", colors:["#e74c3c","#c0392b"], keywords:["home shopping","tv shopping"], headerText:["home shopping"], format:"app" },
+  { id:"humhum", name:"HumHum", segment:"ecommerce", colors:["#9b59b6","#8e44ad"], keywords:["humhum","fashion"], headerText:["humhum"], format:"app" },
+  { id:"zara", name:"Zara (PK)", segment:"ecommerce", colors:["#000000","#333333"], keywords:["zara","fashion","clothing"], headerText:["zara"], format:"app" },
+  { id:"hm", name:"H&M (PK)", segment:"ecommerce", colors:["#e50010","#cc0000"], keywords:["h&m","hm","fashion"], headerText:["h&m","hm"], format:"app" },
+  { id:"aliexpress", name:"AliExpress", segment:"ecommerce", colors:["#e62e04","#ff4747"], keywords:["aliexpress","ali express","free shipping"], headerText:["aliexpress"], format:"app" },
+  { id:"amazon", name:"Amazon (PK)", segment:"ecommerce", colors:["#ff9900","#ffb84d"], keywords:["amazon","prime","free delivery"], headerText:["amazon"], format:"app" },
+
+  // ===== BANKS =====
+  { id:"hbl", name:"HBL", segment:"bank", colors:["#006747","#00875a","#004d35"], keywords:["hbl","habib bank","konnect","hbl mobile","debit card","credit card"], headerText:["hbl","habib"], format:"app" },
+  { id:"mcb", name:"MCB Bank", segment:"bank", colors:["#005a30","#007a3d","#004d28"], keywords:["mcb","mcb live","mcb islamic"], headerText:["mcb"], format:"app" },
+  { id:"ubl", name:"UBL", segment:"bank", colors:["#003366","#004080","#00264d"], keywords:["ubl","united bank","omni","ubl digital"], headerText:["ubl","united bank"], format:"app" },
+  { id:"meezan", name:"Meezan Bank", segment:"bank", colors:["#00695c","#00897b","#004d40"], keywords:["meezan","islamic bank","meezan digital","meezan app"], headerText:["meezan"], format:"app" },
+  { id:"alfalah", name:"Bank Alfalah", segment:"bank", colors:["#1a237e","#283593","#0d1b6e"], keywords:["alfalah","bank alfalah","alfa","alfa app"], headerText:["alfalah"], format:"app" },
+  { id:"askari", name:"Askari Bank", segment:"bank", colors:["#1b5e20","#2e7d32","#145218"], keywords:["askari","askari bank"], headerText:["askari"], format:"app" },
+  { id:"allied", name:"Allied Bank", segment:"bank", colors:["#0d47a1","#1565c0","#0a3d91"], keywords:["allied","abl","allied bank"], headerText:["allied","abl"], format:"app" },
+  { id:"jsbank", name:"JS Bank", segment:"bank", colors:["#1565c0","#1976d2"], keywords:["js bank","jsbank"], headerText:["js bank"], format:"app" },
+  { id:"faysal", name:"Faysal Bank", segment:"bank", colors:["#004d40","#00695c"], keywords:["faysal","faysal bank"], headerText:["faysal"], format:"app" },
+  { id:"bankislami", name:"BankIslami", segment:"bank", colors:["#00695c","#00897b"], keywords:["bankislami","bank islami","islami"], headerText:["bankislami"], format:"app" },
+  { id:"silkbank", name:"SilkBank", segment:"bank", colors:["#4a148c","#6a1b9a"], keywords:["silkbank","silk bank"], headerText:["silkbank"], format:"app" },
+  { id:"summit", name:"Summit Bank", segment:"bank", colors:["#b71c1c","#c62828"], keywords:["summit","summit bank"], headerText:["summit"], format:"app" },
+  { id:"nbp", name:"NBP", segment:"bank", colors:["#1b5e20","#2e7d32"], keywords:["nbp","national bank"], headerText:["nbp","national bank"], format:"app" },
+  { id:"bop", name:"Bank of Punjab", segment:"bank", colors:["#0d47a1","#1565c0"], keywords:["bop","bank of punjab","punjab"], headerText:["bop","punjab"], format:"app" },
+  { id:"smb", name:"SMB (Samba)", segment:"bank", colors:["#e65100","#ef6c00"], keywords:["smb","samba"], headerText:["smb"], format:"app" },
+  { id:"dubaiislamic", name:"Dubai Islamic", segment:"bank", colors:["#00695c","#00897b"], keywords:["dubai islamic","dib"], headerText:["dubai islamic"], format:"app" },
+  { id:"standardchartered", name:"Standard Chartered", segment:"bank", colors:["#0072ce","#005bb5"], keywords:["standard chartered","scb"], headerText:["standard chartered"], format:"app" },
+  { id:"citi", name:"Citi Bank", segment:"bank", colors:["#003b70","#00509e"], keywords:["citi","citibank"], headerText:["citi"], format:"app" },
+  { id:"habibmetro", name:"HabibMetro", segment:"bank", colors:["#006747","#00875a"], keywords:["habibmetro","habib metro"], headerText:["habibmetro"], format:"app" },
+  { id:"bankmaktaba", name:"Bank Maktaba", segment:"bank", colors:["#1a237e","#283593"], keywords:["maktaba"], headerText:["maktaba"], format:"app" },
+
+  // ===== E-WALLETS / FINTECH =====
+  { id:"easypaisa", name:"Easypaisa", segment:"ewallet", colors:["#4caf50","#66bb6a","#2e7d32","#388e3c"], keywords:["easypaisa","telenor","wallet","cashback","recharge","easy paisa","send money","bill payment"], headerText:["easypaisa","easy paisa"], format:"app" },
+  { id:"jazzcash", name:"JazzCash", segment:"ewallet", colors:["#e53935","#d32f2f","#c62828","#ef5350"], keywords:["jazzcash","jazz","wallet","recharge","cashback","jazz cash","send money"], headerText:["jazzcash","jazz cash"], format:"app" },
+  { id:"sadaapay", name:"SadaaPay", segment:"ewallet", colors:["#00c853","#00e676","#00b248"], keywords:["sadaapay","sadaa pay","card","transfer"], headerText:["sadaapay","sadaa"], format:"app" },
+  { id:"nayapay", name:"NayaPay", segment:"ewallet", colors:["#6200ea","#7c4dff","#651fff"], keywords:["nayapay","naya pay","card","transfer"], headerText:["nayapay","naya"], format:"app" },
+  { id:"raast", name:"Raast", segment:"ewallet", colors:["#00695c","#00897b"], keywords:["raast","instant payment","p2p"], headerText:["raast"], format:"app" },
+  { id:"finja", name:"Finja", segment:"ewallet", colors:["#ff6f00","#ff8f00"], keywords:["finja","b2b","payments"], headerText:["finja"], format:"app" },
+  { id:"tagpay", name:"TagPay", segment:"ewallet", colors:["#1565c0","#1976d2"], keywords:["tagpay","tag pay"], headerText:["tagpay"], format:"app" },
+  { id:"upaisa", name:"uPaisa", segment:"ewallet", colors:["#7b1fa2","#9c27b0"], keywords:["upaisa","u paisa","wallet"], headerText:["upaisa"], format:"app" },
+  { id:"keenu", name:"Keenu Wallet", segment:"ewallet", colors:["#00bcd4","#00acc1"], keywords:["keenu","wallet"], headerText:["keenu"], format:"app" },
+  { id:"postex", name:"PostEx", segment:"ewallet", colors:["#ff5722","#e64a19"], keywords:["postex","cod","cash on delivery"], headerText:["postex"], format:"app" },
+
+  // ===== RESTAURANTS / FOOD CHAINS =====
+  { id:"kfc", name:"KFC", segment:"restaurant", colors:["#e4002b","#c8102e","#d32f2f"], keywords:["kfc","bucket","colonel","zinger","twister","hot wings"], headerText:["kfc"], format:"app" },
+  { id:"mcdonalds", name:"McDonald's", segment:"restaurant", colors:["#ffc72c","#ffbc0d","#da291c"], keywords:["mcdonald","mcd","mcrib","mcflurry","big mac","happy meal","nuggets"], headerText:["mcdonald","mc donald"], format:"app" },
+  { id:"pizzahut", name:"Pizza Hut", segment:"restaurant", colors:["#ee3124","#d32f2f","#c62828"], keywords:["pizza hut","hut","stuffed crust","pan pizza"], headerText:["pizza hut"], format:"app" },
+  { id:"dominos", name:"Domino's", segment:"restaurant", colors:["#0b648f","#e31837","#0078ae"], keywords:["domino","dominos","pizza","extravaganza"], headerText:["domino"], format:"app" },
+  { id:"burgerking", name:"Burger King", segment:"restaurant", colors:["#f5a623","#d62300","#ff8712"], keywords:["burger king","whopper","king deal"], headerText:["burger king"], format:"app" },
+  { id:"hardees", name:"Hardee's", segment:"restaurant", colors:["#f5a623","#e8a020","#ffc72c"], keywords:["hardee","charbroiled","thickburger"], headerText:["hardee"], format:"app" },
+  { id:"nandos", name:"Nando's", segment:"restaurant", colors:["#d32f2f","#b71c1c","#000000"], keywords:["nando","peri peri","flame grilled"], headerText:["nando"], format:"app" },
+  { id:"subway", name:"Subway", segment:"restaurant", colors:["#00853f","#ffc600"], keywords:["subway","footlong","sandwich"], headerText:["subway"], format:"app" },
+  { id:"popeyes", name:"Popeyes", segment:"restaurant", colors:["#f57c00","#e65100"], keywords:["popeyes","chicken","louisiana"], headerText:["popeyes"], format:"app" },
+  { id:"tgif", name:"TGI Friday's", segment:"restaurant", colors:["#c62828","#b71c1c"], keywords:["tgi","friday","fridays"], headerText:["tgi"], format:"app" },
+  { id:"chilis", name:"Chili's", segment:"restaurant", colors:["#d32f2f","#c62828"], keywords:["chili","chilis"], headerText:["chili"], format:"app" },
+  { id:"optp", name:"OPTP", segment:"restaurant", colors:["#e53935","#d32f2f"], keywords:["optp","combo","burger","fries"], headerText:["optp"], format:"app" },
+  { id:"broadway", name:"Broadway Pizza", segment:"restaurant", colors:["#1b5e20","#2e7d32"], keywords:["broadway","pizza"], headerText:["broadway"], format:"app" },
+  { id:"cheezious", name:"Cheezious", segment:"restaurant", colors:["#ff6f00","#ff8f00"], keywords:["cheezious","pizza","pasta"], headerText:["cheezious"], format:"app" },
+  { id:"pizzaa", name:"Pizzaa", segment:"restaurant", colors:["#e53935","#d32f2f"], keywords:["pizzaa","pizza"], headerText:["pizzaa"], format:"app" },
+  { id:"gloria", name:"Gloria Jean's", segment:"restaurant", colors:["#4e342e","#5d4037"], keywords:["gloria","jean","coffee","latte"], headerText:["gloria"], format:"app" },
+  { id:"starbucks", name:"Starbucks", segment:"restaurant", colors:["#00704a","#008c5e"], keywords:["starbucks","coffee","frappuccino","latte"], headerText:["starbucks"], format:"app" },
+  { id:"dunkin", name:"Dunkin'", segment:"restaurant", colors:["#e11383","#ff6900"], keywords:["dunkin","donut","coffee"], headerText:["dunkin"], format:"app" },
+  { id:"chaiwala", name:"Chai Wala", segment:"restaurant", colors:["#8d6e63","#795548"], keywords:["chai wala","chai","tea"], headerText:["chai wala"], format:"app" },
+  { id:"secondfloor", name:"Second Floor", segment:"restaurant", colors:["#37474f","#455a64"], keywords:["second floor","cafe"], headerText:["second floor"], format:"app" },
+
+  // ===== GROCERY / SUPERMARKETS =====
+  { id:"imtiaz", name:"Imtiaz Super Market", segment:"grocery", colors:["#e53935","#d32f2f"], keywords:["imtiaz","super market","grocery"], headerText:["imtiaz"], format:"app" },
+  { id:"metro", name:"Metro Cash & Carry", segment:"grocery", colors:["#003366","#004080"], keywords:["metro","cash and carry","wholesale"], headerText:["metro"], format:"app" },
+  { id:"makro", name:"Makro", segment:"grocery", colors:["#e53935","#d32f2f"], keywords:["makro","wholesale","superstore"], headerText:["makro"], format:"app" },
+  { id:"carrefourpk", name:"Carrefour PK", segment:"grocery", colors:["#8b1a1a","#a52a2a"], keywords:["carrefour","hypermarket","grocery"], headerText:["carrefour"], format:"app" },
+  { id:"naheed", name:"Naheed Supermarket", segment:"grocery", colors:["#1565c0","#1976d2"], keywords:["naheed","supermarket"], headerText:["naheed"], format:"app" },
+  { id:"chaseup", name:"Chase Up", segment:"grocery", colors:["#e53935","#d32f2f"], keywords:["chase up","chaseup","supermarket"], headerText:["chase"], format:"app" },
+  { id:"albaik", name:"Al Baik", segment:"grocery", colors:["#00695c","#00897b"], keywords:["al baik","albaik","grocery"], headerText:["al baik"], format:"app" },
+  { id:"bismillah", name:"Bismillah Superstore", segment:"grocery", colors:["#1b5e20","#2e7d32"], keywords:["bismillah","superstore"], headerText:["bismillah"], format:"app" },
+
+  // ===== TRAVEL / BOOKING =====
+  { id:"bookmyflight", name:"BookMyFlight", segment:"travel", colors:["#1565c0","#1976d2"], keywords:["bookmyflight","flight","airline"], headerText:["bookmyflight"], format:"app" },
+  { id:"sastaticket", name:"Sastaticket", segment:"travel", colors:["#e53935","#d32f2f"], keywords:["sastaticket","sasta ticket","flight","hotel"], headerText:["sastaticket"], format:"app" },
+  { id:"airblue", name:"Airblue", segment:"travel", colors:["#0072ce","#005bb5"], keywords:["airblue","air blue","flight","booking"], headerText:["airblue"], format:"app" },
+  { id:"pia", name:"PIA", segment:"travel", colors:["#00695c","#00897b"], keywords:["pia","pakistan international","flight"], headerText:["pia"], format:"app" },
+  { id:"serene", name:"Serene Air", segment:"travel", colors:["#00695c","#00897b"], keywords:["serene","serene air","flight"], headerText:["serene"], format:"app" },
+  { id:"booking", name:"Booking.com", segment:"travel", colors:["#003580","#004494"], keywords:["booking","hotel","reservation"], headerText:["booking"], format:"app" },
+  { id:"agoda", name:"Agoda", segment:"travel", colors:["#5c2d91","#6b3fa0"], keywords:["agoda","hotel","booking"], headerText:["agoda"], format:"app" },
+
+  // ===== TELECOM / UTILITIES =====
+  { id:"jazz", name:"Jazz", segment:"telecom", colors:["#e53935","#d32f2f"], keywords:["jazz","telenor","recharge","bundle","mb","gb"], headerText:["jazz"], format:"app" },
+  { id:"telenor", name:"Telenor", segment:"telecom", colors:["#00aeef","#0099d6"], keywords:["telenor","recharge","bundle","easy paisa"], headerText:["telenor"], format:"app" },
+  { id:"zong", name:"Zong", segment:"telecom", colors:["#8bc34a","#7cb342"], keywords:["zong","recharge","bundle","4g"], headerText:["zong"], format:"app" },
+  { id:"ufone", name:"Ufone", segment:"telecom", colors:["#ff6f00","#ff8f00"], keywords:["ufone","recharge","bundle"], headerText:["ufone"], format:"app" },
+  { id:"ptcl", name:"PTCL", segment:"telecom", colors:["#00695c","#00897b"], keywords:["ptcl","broadband","internet","bill"], headerText:["ptcl"], format:"app" },
+  { id:"stormfiber", name:"StormFiber", segment:"telecom", colors:["#e53935","#d32f2f"], keywords:["stormfiber","storm fiber","internet","broadband"], headerText:["stormfiber"], format:"app" },
+  { id:"nayatel", name:"Nayatel", segment:"telecom", colors:["#1565c0","#1976d2"], keywords:["nayatel","internet","fiber"], headerText:["nayatel"], format:"app" },
+
+  // ===== PHARMACY / HEALTH =====
+  { id:"dawai", name:"Dawai.pk", segment:"health", colors:["#00897b","#00695c"], keywords:["dawai","medicine","pharmacy","prescription"], headerText:["dawai"], format:"app" },
+  { id:"sehat", name:"Sehat.com", segment:"health", colors:["#e53935","#d32f2f"], keywords:["sehat","medicine","pharmacy"], headerText:["sehat"], format:"app" },
+  { id:"marham", name:"Marham", segment:"health", colors:["#1565c0","#1976d2"], keywords:["marham","doctor","appointment"], headerText:["marham"], format:"app" },
+  { id:"oladoc", name:"Oladoc", segment:"health", colors:["#00bcd4","#00acc1"], keywords:["oladoc","doctor","appointment","clinic"], headerText:["oladoc"], format:"app" },
+
+  // ===== EDUCATION =====
+  { id:"byjus", name:"BYJU'S", segment:"education", colors:["#e53935","#d32f2f"], keywords:["byjus","learning","education"], headerText:["byjus"], format:"app" },
+  { id:"ilmkidunya", name:"IlmKiDunya", segment:"education", colors:["#1565c0","#1976d2"], keywords:["ilmkidunya","ilm ki dunya","education","admission"], headerText:["ilmkidunya"], format:"app" }
+];
+
+const SEGMENT_LABELS = {
+  qcommerce: "🚀 Quick Commerce",
+  ecommerce: "🛒 E-Commerce",
+  bank: "🏦 Bank",
+  ewallet: "👛 E-Wallet",
+  restaurant: "🍔 Restaurant / Food",
+  grocery: "🛒 Grocery / Supermarket",
+  travel: "✈️ Travel / Booking",
+  telecom: "📱 Telecom / Utilities",
+  health: "💊 Pharmacy / Health",
+  education: "📚 Education"
+};
+
+// ---- Platform ⇄ Brand bridge ----
+const SEGMENT_TO_BRAND_TYPE = {
+  qcommerce: "delivery", ecommerce: "ecommerce", bank: "bank", ewallet: "wallet",
+  restaurant: "qsr", grocery: "retail", travel: "travel", telecom: "telecom",
+  health: "health", education: "education"
+};
+const FALLBACK_COLORS = ["#7c5cff","#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6","#14b8a6","#ec4899","#6366f1","#84cc16"];
+function stableColor(seed) {
+  const t = normMerchant(seed) || "x";
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+  return FALLBACK_COLORS[h % FALLBACK_COLORS.length];
+}
+function findPlatformByName(rawName) {
+  const key = normMerchant(rawName);
+  if (!key) return null;
+  return PK_PLATFORMS.find(p => p.id === key || normMerchant(p.name) === key) || null;
+}
+function findPlatformById(id) {
+  return PK_PLATFORMS.find(p => p.id === id || normMerchant(p.name) === normMerchant(id)) || null;
+}
+function brandFromPlatform(pl) {
+  return {
+    id: pl.id, name: pl.name,
+    brand_type: SEGMENT_TO_BRAND_TYPE[pl.segment] || "brand",
+    color: (pl.colors && pl.colors[0]) || stableColor(pl.id),
+    logo: null, segment: pl.segment,
+    merchant_profile: { created_at: NOW.toISOString(), created_by: "ai_recognized", source: "platform_match", deal_count: 0, ai_confident: true }
+  };
+}
+// Device-created/promoted brands survive fetchLive's wholesale DATA.brands replacement.
+function deviceBrands() { try { return JSON.parse(store.get("dr_device_brands", "[]")); } catch { return []; } }
+function rememberDeviceBrand(profile) {
+  if (!profile || !profile.id) return;
+  const list = deviceBrands().filter(b => b.id !== profile.id);
+  list.push(profile);
+  try { store.set("dr_device_brands", JSON.stringify(list.slice(-200))); } catch (e) {}
+}
+
+// ---- Founder Profile (user preference memory) ----
+const FounderProfile = {
+  data: JSON.parse(store.get("dr_founder_profile", "null")) || {
+    totalSubmissions: 0,
+    segmentCounts: {},       // {qcommerce: 12, bank: 5, ...}
+    brandCounts: {},         // {foodpanda: 8, kfc: 3, ...}
+    lastBrands: [],          // last 10 brand IDs submitted
+    avgConfidence: 0,
+    preferredSegments: [],   // top segments by frequency
+    createdAt: null,
+    updatedAt: null
+  },
+  save() {
+    this.data.updatedAt = new Date().toISOString();
+    store.set("dr_founder_profile", JSON.stringify(this.data));
+  },
+  recordSubmission(brandId, segment, confidence) {
+    this.data.totalSubmissions++;
+    this.data.segmentCounts[segment] = (this.data.segmentCounts[segment] || 0) + 1;
+    this.data.brandCounts[brandId] = (this.data.brandCounts[brandId] || 0) + 1;
+    this.data.lastBrands.unshift(brandId);
+    if (this.data.lastBrands.length > 10) this.data.lastBrands.pop();
+    this.data.avgConfidence = ((this.data.avgConfidence * (this.data.totalSubmissions - 1)) + confidence) / this.data.totalSubmissions;
+    // Recompute preferred segments
+    this.data.preferredSegments = Object.entries(this.data.segmentCounts)
+      .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
+    if (!this.data.createdAt) this.data.createdAt = new Date().toISOString();
+    this.save();
+  },
+  // Boost: if user frequently submits from a segment, boost that segment's platforms
+  getSegmentBoost(platformId) {
+    const p = PK_PLATFORMS.find(x => x.id === platformId);
+    if (!p) return 1;
+    const count = this.data.segmentCounts[p.segment] || 0;
+    const total = this.data.totalSubmissions || 1;
+    const freq = count / total;
+    return 1 + (freq * 0.3); // up to 30% boost for frequent segments
+  },
+  // Boost: if user recently submitted this brand, it's more likely again
+  getBrandBoost(platformId) {
+    const idx = this.data.lastBrands.indexOf(platformId);
+    if (idx === -1) return 1;
+    return 1 + ((10 - idx) / 10) * 0.2; // up to 20% boost for recent brands
+  }
+};
+
+// ---- Image Analysis Utilities ----
+function loadImage(dataUrl) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = dataUrl;
+  });
+}
+
+// Analyze a specific region of the image (for header cropping)
+function analyzeRegion(img, x, y, w, h) {
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const buckets = {};
+  for (let i = 0; i < data.length; i += 16) {
+    const r = Math.round(data[i] / 32) * 32;
+    const g = Math.round(data[i + 1] / 32) * 32;
+    const b = Math.round(data[i + 2] / 32) * 32;
+    const key = `${r},${g},${b}`;
+    buckets[key] = (buckets[key] || 0) + 1;
+  }
+  return Object.entries(buckets).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => {
+    const [r, g, b] = k.split(",").map(Number);
+    return { r, g, b, hex: `#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}` };
+  });
+}
+
+// Full image dominant colors
+function analyzeFullColors(img) {
+  return analyzeRegion(img, 0, 0, img.width, img.height);
+}
+
+// Crop header region (top 15%) as a data URL for targeted OCR
+function cropHeader(img) {
+  const h = Math.round(img.height * 0.15);
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, img.width, h, 0, 0, img.width, h);
+  return canvas.toDataURL("image/png");
+}
+
+// Color distance
+function colorDist(c1, c2) {
+  return Math.sqrt((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2 + (c1[2]-c2[2])**2);
+}
+
+// Match colors against platform signatures
+function matchByColor(colors, platforms) {
+  const results = [];
+  for (const p of platforms) {
+    let best = 0;
+    for (const dc of colors) {
+      for (const pc of p.colors) {
+        const r = parseInt(pc.slice(1,3),16), g = parseInt(pc.slice(3,5),16), b = parseInt(pc.slice(5,7),16);
+        const score = Math.max(0, 1 - colorDist([dc.r,dc.g,dc.b],[r,g,b]) / 180);
+        best = Math.max(best, score);
+      }
+    }
+    if (best > 0.25) results.push({ platform: p, score: best });
+  }
+  return results.sort((a, b) => b.score - a.score);
+}
+
+// Match OCR text against platform keywords (word-boundary aware)
+function matchByText(ocrText, platforms) {
+  const T = String(ocrText || "").toLowerCase();
+  const results = [];
+  for (const p of platforms) {
+    let hits = 0;
+    for (const kw of p.keywords) {
+      const k = kw.toLowerCase();
+      if (k.includes(" ") || k.length > 5) {
+        if (T.includes(k)) hits++;
+      } else {
+        const re = new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+        if (re.test(T)) hits++;
+      }
+    }
+    // Also check headerText (brand name in header = very strong signal)
+    let headerHit = false;
+    for (const ht of (p.headerText || [])) {
+      if (T.includes(ht.toLowerCase())) { headerHit = true; break; }
+    }
+    if (hits > 0 || headerHit) {
+      let score = 1 - Math.pow(0.5, hits);
+      if (headerHit) score = Math.max(score, 0.95); // brand name found = near-certain
+      results.push({ platform: p, score, hits, headerHit });
+    }
+  }
+  return results.sort((a, b) => b.score - a.score);
+}
+
+// Format inference: when no brand name or color match, infer from screenshot format
+function inferFromFormat(ocrText, img) {
+  const T = String(ocrText || "").toLowerCase();
+  const aspect = img ? img.height / img.width : 0;
+  const clues = [];
+  // Voucher/coupon format: has "code", "min order", "max discount", "% off"
+  if (/code|coupon|voucher|promo/i.test(T) && /min order|maximum discount|limit per day/i.test(T))
+    clues.push({ segment: "ecommerce", reason: "voucher format with min order/max discount", boost: 0.3 });
+  // Bank card offer: has "card", "debit", "credit", "% off at"
+  if (/card|debit|credit/i.test(T) && /% off|discount|cashback/i.test(T))
+    clues.push({ segment: "bank", reason: "bank card offer format", boost: 0.3 });
+  // E-wallet: has "wallet", "recharge", "cashback", "send money"
+  if (/wallet|recharge|send money|bill payment/i.test(T))
+    clues.push({ segment: "ewallet", reason: "e-wallet transaction format", boost: 0.3 });
+  // Food delivery: has "delivery", "order", "restaurant", "min"
+  if (/delivery|order now|restaurant|pick.?up/i.test(T) && aspect > 1.5)
+    clues.push({ segment: "qcommerce", reason: "food delivery app format", boost: 0.25 });
+  // Grocery: has "grocery", "fresh", "vegetables", "fruits"
+  if (/grocery|fresh|vegetables|fruits|supermarket/i.test(T))
+    clues.push({ segment: "grocery", reason: "grocery/supermarket format", boost: 0.25 });
+  // Telecom: has "recharge", "bundle", "mb", "gb", "data"
+  if (/recharge|bundle|\d+\s*(mb|gb)|data pack/i.test(T))
+    clues.push({ segment: "telecom", reason: "telecom recharge format", boost: 0.25 });
+  // Travel: has "flight", "hotel", "booking", "ticket"
+  if (/flight|hotel|booking|ticket|airline/i.test(T))
+    clues.push({ segment: "travel", reason: "travel/booking format", boost: 0.25 });
+  return clues;
+}
+
+// ---- Main AI Guess: 3-tier cascade ----
+async function aiGuessPlatform(dataUrl, ocrText) {
+  try {
+    const img = await loadImage(dataUrl);
+
+    // Tier 1: Header color analysis (top 15% of image)
+    const headerColors = analyzeRegion(img, 0, 0, img.width, Math.round(img.height * 0.15));
+    const headerColorMatches = matchByColor(headerColors, PK_PLATFORMS);
+
+    // Tier 2: Full-page color analysis
+    const fullColors = analyzeFullColors(img);
+    const fullColorMatches = matchByColor(fullColors, PK_PLATFORMS);
+
+    // Tier 3: Text matching (full OCR text)
+    const textMatches = matchByText(ocrText, PK_PLATFORMS);
+
+    // Tier 4: Format inference (for vague screenshots)
+    const formatClues = inferFromFormat(ocrText, img);
+
+    // Combine all signals with weights
+    const combined = {};
+    const addScore = (platformId, score, weight, source) => {
+      if (!combined[platformId]) combined[platformId] = { platform: PK_PLATFORMS.find(p => p.id === platformId), scores: {}, total: 0 };
+      const weighted = score * weight;
+      combined[platformId].scores[source] = Math.max(combined[platformId].scores[source] || 0, weighted);
+    };
+
+    // Header color is strong (0.35) — app headers are distinctive
+    headerColorMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.35, "headerColor"));
+    // Full color is supporting (0.2)
+    fullColorMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.2, "fullColor"));
+    // Text is strongest (0.45) — brand name in text = near-certain
+    textMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.45, "text"));
+
+    // Apply founder profile boosts
+    for (const id of Object.keys(combined)) {
+      const segBoost = FounderProfile.getSegmentBoost(id);
+      const brandBoost = FounderProfile.getBrandBoost(id);
+      combined[id].total = Object.values(combined[id].scores).reduce((a, b) => a + b, 0) * segBoost * brandBoost;
+    }
+
+    // Format clues boost segments (not specific brands)
+    for (const clue of formatClues) {
+      const segPlatforms = PK_PLATFORMS.filter(p => p.segment === clue.segment);
+      for (const p of segPlatforms) {
+        if (combined[p.id]) {
+          combined[p.id].total += clue.boost * 0.1; // small boost to existing candidates in that segment
+        }
+      }
+    }
+
+    const ranked = Object.values(combined)
+      .filter(c => c.total > 0.15)
+      .sort((a, b) => b.total - a.total);
+
+    if (!ranked.length) return null;
+
+    const top = ranked[0];
+    return {
+      platform: top.platform,
+      totalScore: Math.min(top.total, 1),
+      scores: top.scores,
+      runnersUp: ranked.slice(1, 4).map(r => ({ platform: r.platform, score: r.total })),
+      formatClues
+    };
+  } catch (e) {
+    console.warn("aiGuessPlatform error:", e.message);
+    return null;
+  }
+}
+
+// ---- modular deal extractor (Phase 3) ----
+// Not hard-wired to one model. Providers are tried in order; each returns
+// { fields, confidence, provider }. Today: Tesseract.js OCR + regex. Later a
+// cloud vision/LLM provider can be appended without touching callers.
+const DealExtractor = {
+  providers: [],
+  register(p) { this.providers.push(p); },
+  async extract(imageDataUrl, timeoutMs = 20000) {
+    const timer = new Promise((_, rej) => setTimeout(() => rej(new Error("OCR timed out — fill manually")), timeoutMs));
+    try { return await Promise.race([this._runProviders(imageDataUrl), timer]); }
+    catch (e) { return { fields: {}, confidence: 0, provider: "timeout", raw: "", error: e.message }; }
+  },
+  async _runProviders(imageDataUrl) {
+    for (const p of this.providers) {
+      try {
+        const out = await p(imageDataUrl);
+        if (out && out.fields) return out;
+      } catch (e) { /* try next provider */ }
+    }
+    return { fields: {}, confidence: 0, provider: "none", raw: "" };
+  }
+};
+
+// Lazy-load Tesseract.js OCR from CDN (kept optional — app still works offline without it)
+let _tessLoading = null;
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (_tessLoading) return _tessLoading;
+  _tessLoading = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    s.onload = () => res(window.Tesseract);
+    s.onerror = () => rej(new Error("OCR unavailable offline"));
+    document.head.appendChild(s);
+  });
+  return _tessLoading;
+}
+
+// Parse extracted text into structured deal fields with per-field confidence
+function parseDealText(text) {
+  const fields = {};
+  const conf = {};
+  const T = String(text || "");
+
+  // Discount %
+  const pct = T.match(/(\d{1,3})\s*%\s*(?:off|discount|cashback|save)?/i);
+  if (pct && +pct[1] <= 90) { fields.discount_kind = "percent"; fields.discount_value = +pct[1]; conf.discount_value = 0.8; }
+  // Flat Rs off
+  const flat = T.match(/Rs\.?\s*([\d,]{2,})\s*(?:off|discount)?/i);
+  if (!fields.discount_value && flat) { fields.discount_kind = "flat"; fields.discount_value = +flat[1].replace(/,/g, ""); conf.discount_value = 0.75; }
+  // BOGO
+  if (/buy\s*1\s*get\s*1|bogo|buy one get one/i.test(T)) { fields.discount_kind = "bogo"; conf.discount_kind = 0.7; }
+
+  // Promo code — must contain a digit, and not be a keyword word
+  const CODE_WORDS = /^(code|coupon|promo|voucher|use|deal|offer|discount|free|today|only|checkout|valid|till|until|the|and|with|save|get|buy|now|ends|minutes?|hours?|days?)$/i;
+  let codeMatch = T.match(new RegExp(`\\b(?:code|coupon|promo|voucher)\\s*[:\\-]?\\s*([A-Z0-9]{4,12})\\b`, "i"));
+  let codeTok = codeMatch ? codeMatch[1] : null;
+  if (!codeTok || CODE_WORDS.test(codeTok) || !/\d/.test(codeTok)) {
+    const alt = T.match(/\b([A-Z]{2,8}\d{2,6}|\d{2,6}[A-Z]{2,8})\b/);
+    codeTok = alt && !CODE_WORDS.test(alt[1]) ? alt[1] : null;
+  }
+  if (codeTok && !CODE_WORDS.test(codeTok) && /\d/.test(codeTok)) { fields.code = codeTok.toUpperCase(); conf.code = 0.6; }
+
+  // Expiry
+  const mon = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec";
+  let expires_at = null;
+  const dmy = T.match(new RegExp(`(\\d{1,2})[\\s\\-/](${mon})[a-z]*[\\s\\-/]?(\\d{2,4})`, "i"));
+  if (dmy) {
+    const yr = dmy[3].length === 2 ? "20" + dmy[3] : dmy[3];
+    const dt = new Date(`${dmy[2].slice(0,3)} ${dmy[1]}, ${yr} 23:59:59`);
+    if (!isNaN(dt)) expires_at = dt.toISOString();
+  }
+  const rel = T.match(/(\d{1,3})\s*(min|minute|hour|hr|day)s?\b/i);
+  if (!expires_at && rel) {
+    const n = +rel[1], unit = rel[2].toLowerCase();
+    const ms = unit.startsWith("min") ? n * 6e4 : unit.startsWith("h") ? n * 36e5 : n * 864e5;
+    expires_at = new Date(Date.now() + ms).toISOString();
+    conf.expires_at = 0.5;
+  }
+  if (expires_at && conf.expires_at === undefined) conf.expires_at = 0.55;
+  fields.expires_at = expires_at;
+
+  // Merchant guess: first capitalized brand-ish token that matches a known brand
+  for (const b of DATA.brands) {
+    if (b.name && T.toLowerCase().includes(String(b.name).toLowerCase())) { fields.brand = b.name; conf.brand = 0.7; break; }
+  }
+  // Title: longest line that looks promotional
+  const lines = T.split(/\n+/).map(s => s.trim()).filter(s => s.length > 8 && s.length < 90);
+  const promo = lines.find(l => /off|deal|discount|save|cashback|free|%|offer/i.test(l));
+  if (promo) { fields.title = promo.replace(/\s+/g, " "); conf.title = 0.4; }
+
+  const vals = Object.values(conf);
+  const confidence = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  return { fields, confidence, conf };
+}
+
+DealExtractor.register(async (dataUrl) => {
+  const Tess = await loadTesseract();
+  const { data } = await Tess.recognize(dataUrl);
+  const raw = data.text || "";
+  const parsed = parseDealText(raw);
+  return { fields: parsed.fields, confidence: parsed.confidence, conf: parsed.conf, provider: "tesseract", raw };
+});
+
+// ---- screenshot submission (Phase 3 + AI Brand Recognition) ----
+function openScreenshotSubmit(preDataUrl, preFile) {
+  pushNav("submit");
+  $("#sheet").innerHTML = `<div class="grab"></div>
+    <h3>📸 Submit a deal screenshot</h3>
+    <p class="sheet-summary">Pick a screenshot of any deal. AI reads the offer and identifies the platform — you just confirm.</p>
+    <div class="drop-zone ss-drop" id="ssDrop"><div class="icon">🖼️</div><p id="ssDropText">Tap to choose a screenshot</p></div>
+    <input type="file" id="ssInput" accept="image/*" hidden>
+    <div id="ssPreview"></div>
+    <div id="ssProgress" class="ss-progress hidden"></div>
+    <div id="ssAiZone" class="hidden"></div>
+    <form class="form hidden" id="ssForm">
+      <div class="ss-warn" id="ssWarn"></div>
+      <label>Merchant / brand</label><input name="brand" id="ssBrand" required autocomplete="off"><div class="merchant-hint" id="ssHint"></div>
+      <label>Offer (title)</label><input name="title" id="ssTitle" required>
+      <label>Discount</label>
+      <div class="f-row">
+        <select name="disc_kind" id="ssKind"><option value="percent">% off</option><option value="flat">Rs off</option><option value="bogo">Buy 1 Get 1</option><option value="cashback">Cashback</option><option value="none">None</option></select>
+        <input name="disc_value" id="ssValue" type="number" min="0" placeholder="value">
+      </div>
+      <label>Ends at</label><input name="expires_at" id="ssExpires" type="datetime-local">
+      <label>Promo code</label><input name="code" id="ssCode" placeholder="(optional)">
+      <label>Category</label><select name="category" id="ssCat">${CATS.filter(c => c[0] !== "all").map(c => `<option value="${c[0]}">${c[1]}</option>`).join("")}</select>
+      <label>City</label><select name="city">${CITIES.slice(1).map(c => `<option>${c}</option>`).join("")}<option>All Pakistan</option></select>
+      <button class="submit" type="submit">✓ Confirm & submit</button>
+    </form>`;
+  showSheet();
+
+  const drop = $("#ssDrop"), input = $("#ssInput");
+  drop.addEventListener("click", () => input.click());
+  input.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => handleScreenshot(ev.target.result, file);
+    reader.readAsDataURL(file);
+  });
+  // Pre-picked image from the submit sheet — skip the picker, start AI reading now
+  if (preDataUrl) { drop.classList.add("hidden"); handleScreenshot(preDataUrl, preFile); }
+
+  async function handleScreenshot(dataUrl, file) {
+    drop.classList.add("hidden");
+    $("#ssPreview").innerHTML = `<img src="${dataUrl}" class="ss-img" alt="screenshot">`;
+    const prog = $("#ssProgress"); prog.classList.remove("hidden");
+    prog.innerHTML = `<div class="spin"></div> AI is reading your screenshot…`;
+    try {
+      // Run OCR + AI brand guess in parallel
+      const [ocrOut, aiGuess] = await Promise.all([
+        DealExtractor.extract(dataUrl),
+        aiGuessPlatform(dataUrl, "") // color-based guess first; text added after OCR
+      ]);
+      const f = ocrOut.fields || {};
+      // Re-run AI guess with OCR text for better accuracy
+      const aiGuessFinal = await aiGuessPlatform(dataUrl, ocrOut.raw || "");
+      const guess = aiGuessFinal || aiGuess;
+
+      prog.classList.add("hidden");
+
+      // ---- AI Brand Confirmation Zone ----
+      const aiZone = $("#ssAiZone");
+      aiZone.classList.remove("hidden");
+      if (guess && guess.totalScore > 0.25) {
+        const p = guess.platform;
+        const segLabel = SEGMENT_LABELS[p.segment] || p.segment;
+        const confidence = Math.round(guess.totalScore * 100);
+        const clueText = (guess.formatClues || []).slice(0, 2).map(c => c.reason).join(" · ");
+        const runnersHtml = (guess.runnersUp || []).map(r =>
+          `<button class="plat-chip ai-runner" data-plat="${r.platform.id}">${r.platform.name} ${Math.round(r.score * 100)}%</button>`).join("");
+        aiZone.innerHTML = `
+          <div class="ai-guess-card">
+            <div class="ai-guess-header">
+              <span class="ai-match-badge">✨ AI Match</span>
+              <span class="ai-confidence">${confidence}% confident</span>
+            </div>
+            <div class="ai-guess-body">
+              <div class="ai-guess-name">${p.name}</div>
+              <div class="ai-guess-segment">${segLabel}${clueText ? ` · <span class="ai-clue">${clueText}</span>` : ""}</div>
+            </div>
+            ${runnersHtml ? `<div class="ai-runners"><span class="ai-runners-label">Or maybe:</span><div class="ai-platform-list">${runnersHtml}</div></div>` : ""}
+            <div class="ai-guess-actions">
+              <button class="ai-yes" id="aiYes">✓ Correct</button>
+              <button class="ai-no" id="aiNo">✕ Not this one</button>
+            </div>
+          </div>
+          <div class="ai-alt hidden" id="aiAlt">
+            <p class="ai-alt-title">Which platform is this from?</p>
+            <div class="ai-segment-tabs" id="aiSegTabs">
+              ${Object.entries(SEGMENT_LABELS).map(([k, v]) => `<button class="seg-tab" data-seg="${k}">${v}</button>`).join("")}
+            </div>
+            <div class="ai-platform-list" id="aiPlatList"></div>
+          </div>`;
+        // Wire AI guess buttons
+        function acceptPlatform(pl, conf) {
+          $("#ssBrand").value = pl.name;
+          $("#ssBrand").dispatchEvent(new Event("input"));
+          $("#ssForm").dataset.aiPlatform = pl.id;
+          if (conf > 0) FounderProfile.recordSubmission(pl.id, pl.segment, conf);
+          aiZone.classList.add("hidden");
+          showForm();
+        }
+        $("#aiYes").addEventListener("click", () => acceptPlatform(p, 0.9));
+        $$(".ai-runner").forEach(chip => chip.addEventListener("click", () => {
+          const pl = PK_PLATFORMS.find(x => x.id === chip.dataset.plat);
+          if (pl) acceptPlatform(pl, 0.7);
+        }));
+        $("#aiNo").addEventListener("click", () => {
+          $("#aiAlt").classList.remove("hidden");
+          renderPlatformList("qcommerce"); // default tab
+        });
+        // Segment tabs
+        $$("#aiSegTabs .seg-tab").forEach(tab => tab.addEventListener("click", () => {
+          $$("#aiSegTabs .seg-tab").forEach(t => t.classList.remove("active"));
+          tab.classList.add("active");
+          renderPlatformList(tab.dataset.seg);
+        }));
+        function renderPlatformList(segment) {
+          const plats = PK_PLATFORMS.filter(p => p.segment === segment);
+          $("#aiPlatList").innerHTML = plats.map(p =>
+            `<button class="plat-chip" data-plat="${p.id}">${p.name}</button>`
+          ).join("") + `<button class="plat-chip plat-other" data-plat="__other">Other / Not listed</button>`;
+          $$("#aiPlatList .plat-chip").forEach(chip => chip.addEventListener("click", () => {
+            if (chip.dataset.plat === "__other") {
+              $("#ssBrand").value = "";
+              $("#ssBrand").focus();
+            } else {
+              const pl = PK_PLATFORMS.find(x => x.id === chip.dataset.plat);
+              $("#ssBrand").value = pl.name;
+              $("#ssBrand").dispatchEvent(new Event("input"));
+              $("#ssForm").dataset.aiPlatform = pl.id;
+              FounderProfile.recordSubmission(pl.id, pl.segment, 0.8);
+            }
+            aiZone.classList.add("hidden");
+            showForm();
+          }));
+        }
+      } else {
+        // No confident guess — show segment picker directly
+        aiZone.innerHTML = `
+          <div class="ai-guess-card ai-noguess">
+            <div class="ai-guess-header"><span class="ai-noguess-label">🤔 Couldn't identify the platform</span></div>
+            <p class="ai-alt-sub">Which app is this screenshot from?</p>
+            <div class="ai-segment-tabs" id="aiSegTabs">
+              ${Object.entries(SEGMENT_LABELS).map(([k, v]) => `<button class="seg-tab" data-seg="${k}">${v}</button>`).join("")}
+            </div>
+            <div class="ai-platform-list" id="aiPlatList"></div>
+          </div>`;
+        $$("#aiSegTabs .seg-tab").forEach(tab => tab.addEventListener("click", () => {
+          $$("#aiSegTabs .seg-tab").forEach(t => t.classList.remove("active"));
+          tab.classList.add("active");
+          renderPlatformList(tab.dataset.seg);
+        }));
+        function renderPlatformList(segment) {
+          const plats = PK_PLATFORMS.filter(p => p.segment === segment);
+          $("#aiPlatList").innerHTML = plats.map(p =>
+            `<button class="plat-chip" data-plat="${p.id}">${p.name}</button>`
+          ).join("") + `<button class="plat-chip plat-other" data-plat="__other">Other / Not listed</button>`;
+          $$("#aiPlatList .plat-chip").forEach(chip => chip.addEventListener("click", () => {
+            if (chip.dataset.plat === "__other") {
+              $("#ssBrand").value = "";
+              $("#ssBrand").focus();
+            } else {
+              const pl = PK_PLATFORMS.find(x => x.id === chip.dataset.plat);
+              $("#ssBrand").value = pl.name;
+              $("#ssBrand").dispatchEvent(new Event("input"));
+              $("#ssForm").dataset.aiPlatform = pl.id;
+              FounderProfile.recordSubmission(pl.id, pl.segment, 0.8);
+            }
+            aiZone.classList.add("hidden");
+            showForm();
+          }));
+        }
+        // Default tab: use format clue segment if AI detected one
+        const defaultSeg = (guess && guess.formatClues && guess.formatClues[0] && guess.formatClues[0].segment) || "qcommerce";
+        const defTab = $(`#aiSegTabs .seg-tab[data-seg="${defaultSeg}"]`) || $("#aiSegTabs .seg-tab");
+        defTab.classList.add("active");
+        renderPlatformList(defaultSeg);
+      }
+
+      // Pre-fill deal fields from OCR
+      $("#ssTitle").value = f.title || "";
+      $("#ssKind").value = f.discount_kind || "none";
+      $("#ssValue").value = f.discount_value != null ? f.discount_value : "";
+      $("#ssCode").value = f.code || "";
+      if (f.expires_at) {
+        const d = new Date(f.expires_at), pad = n => String(n).padStart(2, "0");
+        $("#ssExpires").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+      // If OCR found a brand, pre-fill (AI guess takes priority on confirm)
+      if (f.brand && !$("#ssBrand").value) {
+        $("#ssBrand").value = f.brand;
+        $("#ssBrand").dispatchEvent(new Event("input"));
+      }
+      // Warn about uncertain fields
+      const c = ocrOut.conf || {};
+      const uncertain = [];
+      if ((c.discount_value ?? 0) < 0.6 && f.discount_value != null) uncertain.push("discount");
+      if ((c.expires_at ?? 0) < 0.6) uncertain.push("end time");
+      if ((c.title ?? 0) < 0.5) uncertain.push("offer text");
+      $("#ssWarn").innerHTML = uncertain.length
+        ? `⚠️ Double-check: <b>${uncertain.join(", ")}</b> — OCR read them with low confidence.`
+        : `✅ Please verify these details are correct before submitting.`;
+      $("#ssWarn").className = "ss-warn " + (uncertain.length ? "warn" : "ok");
+      $("#ssForm").dataset.confidence = String(ocrOut.confidence || 0.4);
+      $("#ssForm").dataset.provider = ocrOut.provider || "none";
+      $("#ssForm").dataset.aiPlatform = guess ? guess.platform.id : "";
+      wireSSHint();
+
+      function showForm() { $("#ssForm").classList.remove("hidden"); }
+      // Auto-show form if brand is already filled (OCR found it)
+      if ($("#ssBrand").value) showForm();
+
+    } catch (err) {
+      prog.classList.add("hidden");
+      $("#ssForm").classList.remove("hidden");
+      $("#ssWarn").innerHTML = `⚠️ Couldn't auto-read this screenshot (${err.message}). Fill the fields manually — it still works.`;
+      $("#ssWarn").className = "ss-warn warn";
+      wireSSHint();
+      $("#ssForm").dataset.confidence = "0.3";
+      $("#ssForm").dataset.provider = "manual";
+    }
+  }
+
+  function wireSSHint() {
+    const hint = $("#ssHint");
+    const upd = () => {
+      const val = $("#ssBrand").value.trim();
+      if (val.length < 2) { hint.textContent = ""; return; }
+      const key = normMerchant(val);
+      const alias = MERCHANT_ALIASES[key] || userAliases()[key];
+      const m = DATA.brands.find(x => x.id === key || normMerchant(x.name) === key || (alias && (x.id === alias || normMerchant(x.name) === alias)));
+      hint.textContent = m ? `✓ Attaches to: ${m.name}` : `+ Creates merchant profile "${val}"`;
+    };
+    $("#ssBrand").addEventListener("input", upd); upd();
+  }
+
+  $("#ssForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const category = f.get("category");
+    const resolution = resolveMerchant(f.get("brand") || "Community", category, e.target.dataset.aiPlatform || "");
+    const dupe = findDuplicateDeal(resolution.brandId, (function(){ const k=f.get("disc_kind"), v=f.get("disc_value"); return (k==="percent"&&v)?{kind:"percent",value:Number(v)}:(k==="flat"&&v)?{kind:"flat",value:Number(v)}:null; })(), f.get("code") || null);
+    if (dupe) {
+      reinforceDeal(dupe);
+      addNotification("👥 Same deal already live — your spot was added as confirmation (+1)");
+      brandMap.clear(); closeSheet(); state.tab = "spotted"; state.feedRendered = false; syncTabs(); renderAll(); toast("Already spotted — +1 added");
+      return;
+    }
+    const brandId = resolution.brandId;
+    const existing = DATA.brands.find(b => b.id === brandId);
+    if (existing?.merchant_profile) existing.merchant_profile.deal_count = (existing.merchant_profile.deal_count || 0) + 1;
+    const kind = f.get("disc_kind"), rv = f.get("disc_value");
+    let discount = null;
+    if (kind === "percent" && rv) discount = { kind: "percent", value: Number(rv) };
+    else if (kind === "flat" && rv) discount = { kind: "flat", value: Number(rv) };
+    else if (kind === "cashback" && rv) discount = { kind: "cashback", value: Number(rv) };
+    else if (kind === "bogo") discount = { kind: "bogo", value: null };
+    const expires_at = f.get("expires_at") ? new Date(f.get("expires_at") + ":00+05:00").toISOString() : null;
+    const id = "s" + Date.now();
+    const confidence = Math.max(0.3, Math.min(0.85, parseFloat(e.target.dataset.confidence || "0.4")));
+    // FounderProfile memory: learn from this submission
+    const aiPlatId = e.target.dataset.aiPlatform || "";
+    if (aiPlatId) {
+      const pl = PK_PLATFORMS.find(x => x.id === aiPlatId);
+      if (pl) FounderProfile.recordSubmission(pl.id, pl.segment, confidence);
+    }
+    DATA.deals.push({
+      id, brand: brandId, brand_brand_type: existing?.brand_type || "brand", category,
+      title: "[Spotted] " + (f.get("title") || "Community screenshot deal"),
+      summary: "Submitted from a screenshot via OCR. Pending community verification.",
+      discount,
+      eligibility: { payment: [], merchant: f.get("brand"), user: "any", min_spend: null },
+      cities: [f.get("city")],
+      valid_from: NOW.toISOString().slice(0, 10),
+      valid_until: expires_at ? expires_at.slice(0, 10) : NOW.toISOString().slice(0, 10),
+      exclusions: ["Extracted from screenshot — verify before use"],
+      steps: [],
+      code: f.get("code") || null,
+      campaign_type: expires_at ? "flash" : "standard",
+      first_seen_at: NOW.toISOString(), last_seen_at: NOW.toISOString(),
+      starts_at: NOW.toISOString(), expires_at,
+      merchant_info: { name: f.get("brand"), resolved_brand: resolution.matched || null, new_profile: resolution.isNew },
+      source: { type: "community", platform: "screenshot OCR", url: "", status: "pending", captured_at: NOW.toISOString(), extractor: e.target.dataset.provider, ai_platform: e.target.dataset.aiPlatform || null },
+      status: "reviewing", verification: "pending", confidence,
+      extraction_confidence: confidence,
+      community: { votes: 1, worked: 0, failed: 0, saves: 0, spotted_by: "@you", reports_expired: 0 }
+    });
+    normalizeDeal(DATA.deals[DATA.deals.length - 1]);
+    saveLocalDeal(DATA.deals[DATA.deals.length - 1], resolution);
+    const newDeal = DATA.deals[DATA.deals.length - 1];
+    Sync.pushDeal(newDeal, resolution.profile);
+    if (SB.enabled) SB.from("submissions").insert([{
+      deal_id: newDeal.id, extractor: e.target.dataset.provider || "manual",
+      fields: { title: newDeal.title, discount: newDeal.discount, code: newDeal.code, expires_at: newDeal.expires_at, ai_platform: e.target.dataset.aiPlatform || null },
+      confidence: newDeal.extraction_confidence ?? null, user_id: SB.userId, status: "pending"
+    }]).catch(err => console.warn("submission log failed:", err.message));
+    addNotification(`📸 Screenshot deal "${f.get("title") || "submitted"}" queued for verification`);
+    brandMap.clear(); closeSheet(); state.tab = "spotted"; state.city = "All"; state.cat = "all"; state.q = ""; $("#q").value = ""; state.feedRendered = false; syncTabs(); renderAll(); toast("Screenshot submitted");
   });
 }
 
@@ -1529,6 +2806,12 @@ function openFounderSubmit() {
       community: { votes: 0, worked: 0, failed: 0, saves: 0, spotted_by: "founder", reports_expired: 0 }
     });
     normalizeDeal(DATA.deals[DATA.deals.length - 1]);
+    saveLocalDeal(DATA.deals[DATA.deals.length - 1], resolution);
+    Sync.pushDeal(DATA.deals[DATA.deals.length - 1], resolution.profile); // live to Supabase (fire-and-forget)
+    // FounderProfile memory: learn brand preference
+    const fBrand = (f.get("brand") || "").trim().toLowerCase();
+    const fPlat = PK_PLATFORMS.find(x => x.name.toLowerCase() === fBrand || x.keywords.some(k => k.length > 2 && fBrand.includes(k)));
+    if (fPlat) FounderProfile.recordSubmission(fPlat.id, fPlat.segment, 0.9);
     NOW = new Date(); // device clock stays authoritative
     addNotification(`⚡ Founder flash deal "${f.get("title")}" published`);
     brandMap.clear(); closeSheet(); state.tab = "trending"; state.feedRendered = false; syncTabs(); renderAll();
@@ -1985,6 +3268,9 @@ async function fetchLive(silent = false) {
       }) }).deals;
       DATA.brands = fresh.brands || DATA.brands;
       DATA.meta = { ...DATA.meta, ...fresh.meta };
+      restoreLocalDeals(); // re-merge device-local founder/community/screenshot deals
+      await Sync.pullDeals(); // re-merge shared Supabase deals (fetchLive replaced DATA.deals)
+      flushSyncQueue(); // retry any deals/votes that failed to push while offline
       lastFetch = fresh.meta?.server_time || new Date().toISOString();
       NOW = new Date(); // Device clock always determines expiration
       heatCache.clear(); trustCache.clear(); brandMap.clear();
@@ -2005,6 +3291,13 @@ async function fetchLive(silent = false) {
 function setupLiveRefresh() {
   // Auto-refresh every 5 minutes
   refreshInterval = setInterval(fetchLive, 300000);
+  // When connectivity returns, flush the sync retry queue immediately
+  window.addEventListener("online", () => { flushSyncQueue(); });
+  // Pull shared community deals every 2 minutes (Supabase)
+  setInterval(async () => {
+    const n = await Sync.pullDeals();
+    if (n > 0) { brandMap.clear(); renderAll(); }
+  }, 120000);
 
   // Pull-to-refresh
   let startY = 0, pulling = false;
@@ -2039,6 +3332,14 @@ function setupLiveRefresh() {
     }
     // Always use the device clock. Dataset timestamps describe freshness, not current time.
     NOW = new Date();
+    restoreLocalDeals(); // merge founder/community/screenshot deals saved on this device
+    // Supabase: restore/sign-in anon identity, then pull shared community deals
+    SB.restoreSession();
+    (async () => {
+      if (SB.enabled && !SB.userId) await SB.signInAnon();
+      const n = await Sync.pullDeals();
+      if (n > 0) { brandMap.clear(); renderAll(); }
+    })();
     document.documentElement.dir = LANG === "ur" ? "rtl" : "ltr";
     document.documentElement.lang = LANG;
     $("#langBtn").textContent = t("langToggle");
