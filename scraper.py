@@ -556,6 +556,59 @@ def scrape_all_shopify():
     return out
 
 
+# ---- offer_type classification (additive, deterministic, field-only) ----
+# Rules use ONLY structured fields (source.type, eligibility.payment, category,
+# brand_type). Titles are never parsed for classification. Anything ambiguous
+# stays UNTAGGED rather than guessed. First matching rule wins.
+WALLET_TOKENS = {
+    "easypaisa", "easypaisa_wallet", "easypaisa_debit",
+    "jazzcash", "jazzcash_app", "jazzcash_qr", "jazzcash_debit",
+}
+CARD_MARKERS = ("credit", "debit", "card", "visa", "master")
+FOOD_BRAND_TYPES = {"delivery", "food", "qsr", "restaurant"}
+
+
+def classify_offer_type(deal):
+    """Return an offer_type string or None (None = leave untagged)."""
+    if deal.get("offer_type"):                 # R1: already tagged (e.g. PRODUCT_DEAL) -> keep
+        return deal["offer_type"]
+    if deal.get("source", {}).get("type") == "news" or deal.get("brand_type") == "news":
+        return None                            # R2: news is NOT an offer
+    pay = [str(p).lower() for p in (deal.get("eligibility", {}).get("payment") or [])]
+    wallet_hits = {p for p in pay if p in WALLET_TOKENS}
+    card_hits = {p for p in pay
+                 if p != "any" and p not in WALLET_TOKENS and any(m in p for m in CARD_MARKERS)}
+    if wallet_hits and card_hits:
+        return None                            # R3: mixed instruments = ambiguous
+    if wallet_hits:
+        return "WALLET_OFFER"                  # R4: wallet-issued instrument qualifies it
+    if card_hits:
+        return "BANK_CARD_OFFER"               # R5: card instrument qualifies it (any brand)
+    if deal.get("brand_type") == "bank":
+        return None                            # R6: bank source without instrument = ambiguous
+    if deal.get("category") == "food" and (not pay or pay == ["any"]):
+        return "FOOD_PROMOTION"                # R7: merchant-side food promo, no payment qualifier
+    return None                                # R8: everything else untagged
+
+
+def tag_offers(deals):
+    """In-place additive pass: set offer_type only where absent and derivable.
+    Never removes/alters any other field, never overwrites an existing tag.
+    Returns (tagged_count, counts_by_type)."""
+    counts = {}
+    tagged = 0
+    for d in deals:
+        if d.get("offer_type"):
+            continue
+        t = classify_offer_type(d)
+        if t:
+            d["offer_type"] = t
+            counts[t] = counts.get(t, 0) + 1
+            tagged += 1
+        # t is None -> leave untagged (no key added)
+    return tagged, counts
+
+
 def scrape_all_rss():
     """Scrape all RSS feeds concurrently, return merged deal list."""
     log.info("Scraping RSS news feeds for govt/public deals...")
@@ -772,6 +825,12 @@ def run():
                     brands.append(nb_b)
         except Exception:
             pass
+
+    # Additive offer_type tagging pass: only sets offer_type where absent and
+    # deterministically derivable. Ambiguous records stay untagged; no other
+    # field is touched and no offer is removed.
+    tagged_count, tag_counts = tag_offers(unique)
+    log.info(f"offer_type tagging: {tagged_count} tagged -> {tag_counts}")
 
     output = {
         "meta": {
