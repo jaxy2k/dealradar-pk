@@ -1008,7 +1008,8 @@ function tabDeals() {
     case "evergreen": return all.filter(d => d.status === "evergreen").sort((a, b) => (b.community?.worked || 0) - (a.community?.worked || 0));
     case "spotted": return all.filter(d => d.status === "spotted" || d.status === "reviewing" || d.source?.type === "community" || d.source?.type === "founder" || isLocalDeal(d))
       .sort((a, b) => new Date(b.first_seen_at || b.source?.captured_at || 0) - new Date(a.first_seen_at || a.source?.captured_at || 0));
-    case "calendar": return all.filter(d => d.status !== "evergreen" && d.status !== "spotted" && (d.discount?.value || 0) > 0 && msLeft(d) > 0)
+    case "calendar": return all.filter(d => d.status !== "evergreen" && d.status !== "spotted" && (d.discount?.value || 0) > 0 &&
+      (expiryState(d) === "soon" || expiryState(d) === "longdated"))
       .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
   }
   return all;
@@ -1446,7 +1447,16 @@ function renderMerchantGroups(deals) {
 
 // ---- deal calendar ----
 function renderCalendar(list) {
-  if (!list.length) return `<div class="empty"><div style="font-size:40px;margin-bottom:12px">📅</div>No upcoming deadlines.</div>`;
+  // Only offers with a real, trustworthy expiry date belong on a deadline
+  // calendar. Guard against missing/invalid dates so we never render
+  // "NaN Invalid Date" or count no-expiry deals as expiring.
+  const hasRealDate = d => {
+    if (!d.valid_until) return false;
+    const dt = new Date(String(d.valid_until) + "T00:00:00");
+    return !Number.isNaN(dt.getTime());
+  };
+  list = (list || []).filter(hasRealDate);
+  if (!list.length) return `<div class="empty"><div style="font-size:40px;margin-bottom:12px">📅</div>No dated deadlines coming up. Browse Trending for ongoing deals.</div>`;
   const dayKey = s => s;
   const groups = {};
   list.forEach(d => { (groups[dayKey(d.valid_until)] = groups[dayKey(d.valid_until)] || []).push(d); });

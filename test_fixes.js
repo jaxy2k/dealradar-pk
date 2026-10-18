@@ -139,5 +139,28 @@ ok("cityMatch keeps city-specific + All Pakistan", baseFilter(kOnly)===true && b
 resetState("Lahore");
 ok("Karachi-only excluded for Lahore", baseFilter(kOnly)===false && baseFilter(allPk)===true);
 
+console.log("\nFix A2 — Calendar tab never shows NaN/Invalid Date:");
+const tabDeals = ev("tabDeals"), renderCalendar = ev("renderCalendar");
+// one no-expiry product deal (the old crash case) + one real-dated deal + one placeholder
+set("DATA", { deals:[
+  dPlus(0,{id:"prod", valid_until:null, offer_type:"PRODUCT_DEAL"}),
+  dPlus(5,{id:"real", valid_until:dPlus(5).valid_until}),
+  dPlus(3727,{id:"allied", valid_until:dPlus(3727).valid_until}),
+], brands:[{id:"b", name:"B", brand_type:"bank"}], meta:{} });
+resetState();
+ev('state.tab="calendar"');
+const cal = tabDeals();
+ok("calendar excludes no-expiry deal", !cal.some(d=>d.id==="prod"));
+ok("calendar excludes placeholder (untrusted 2036) deal", !cal.some(d=>d.id==="allied"));
+ok("calendar keeps the genuine dated deal", cal.some(d=>d.id==="real"));
+const calHtml = renderCalendar(cal);
+ok("calendar HTML has no 'NaN'", !/NaN/.test(calHtml));
+ok("calendar HTML has no 'Invalid Date'", !/Invalid Date/i.test(calHtml));
+// even if a no-expiry deal is force-passed, the renderer guard drops it
+const guardHtml = renderCalendar([dPlus(0,{id:"prod", valid_until:null})]);
+ok("renderer guard: no-expiry list -> empty state, not NaN",
+   !/NaN|Invalid Date/i.test(guardHtml) && /No dated deadlines/i.test(guardHtml));
+ev('state.tab="trending"');
+
 console.log(`\n==== ${PASS} passed, ${FAIL} failed ====`);
 process.exit(FAIL?1:0);
