@@ -565,7 +565,6 @@ WALLET_TOKENS = {
     "jazzcash", "jazzcash_app", "jazzcash_qr", "jazzcash_debit",
 }
 CARD_MARKERS = ("credit", "debit", "card", "visa", "master")
-FOOD_BRAND_TYPES = {"delivery", "food", "qsr", "restaurant"}
 
 
 def classify_offer_type(deal):
