@@ -275,6 +275,7 @@ const I18N = {
     langToggle: "اردو",
     allCities: "🌍 All cities", ongoing: "ongoing", expired: "expired",
     ongoingLabel: "Ongoing", endDateNA: "End date unavailable",
+    endsOn: "Ends {date}",
     expiringThisWeek: "Expiring this week", ending3d: "Expiring within 3 days.",
     endingWeek: "Expiring within 7 days.", endingEmpty: "No deals ending soon.",
     backToTrending: "See trending deals",
@@ -324,6 +325,7 @@ const I18N = {
     langToggle: "EN",
     allCities: "🌍 تمام شہر", ongoing: "جاری", expired: "ختم شدہ",
     ongoingLabel: "جاری ہے", endDateNA: "تاریخ اختتام دستیاب نہیں",
+    endsOn: "{date} تک",
     expiringThisWeek: "اس ہفتے ختم", ending3d: "تین دن میں ختم۔",
     endingWeek: "سات دن میں ختم۔", endingEmpty: "کوئی ڈیل جلد ختم نہیں ہو رہی۔",
     backToTrending: "ٹرینڈنگ ڈیلز دیکھیں",
@@ -772,27 +774,44 @@ function msLeft(value) {
 }
 function daysUntil(value) { return Math.ceil(msLeft(value) / 86400000); }
 // Expiry trust model. msLeft() returns Infinity for missing/unparseable dates,
-// so we must never feed that into a day count. Classify each offer's expiry into
-// one of four honest states:
-//   expired  -> real date in the past
-//   soon     -> trustworthy near-term date (<= 90 days) -> show a real countdown
-//   ongoing  -> semantically long-running (status evergreen) or missing date
-//   unknown  -> a date exists but is implausibly far / placeholder -> do NOT show a number
-const FAR_FUTURE_DAYS = 90;
+// so we must never feed that into a day count. Each offer's expiry resolves to
+// exactly one explicit, honest state:
+//   expired     -> a real date already in the past
+//   ongoing     -> ONLY status==="evergreen": the offer is *semantically*
+//                  long-running. Never inferred from a missing date.
+//   soon        -> a trustworthy near-term date (< SOON_MAX_DAYS) -> real countdown
+//   longdated   -> a real, far-but-plausible date (SOON_MAX_DAYS..PLACEHOLDER_MIN_DAYS)
+//                  -> show the actual end date, no fake urgency, no absurd number
+//   placeholder -> a date that exists but is implausibly far (>= PLACEHOLDER_MIN_DAYS),
+//                  e.g. Allied 2036 ("3727d") or a 439d standing voucher -> untrusted
+//   missing     -> no expiry date at all -> we do NOT know an end date
+// "Ongoing" is reserved for evergreen only; missing and placeholder are shown as
+// "End date unavailable" so the UI never claims an offer is ongoing just because
+// its expiry is absent or untrustworthy.
+const SOON_MAX_DAYS = 90;        // countdown shown when days < 90
+const PLACEHOLDER_MIN_DAYS = 365; // >= 365 days treated as placeholder/untrusted
+function expiryISO(value) {
+  let v = value;
+  if (v && typeof v === "object") v = v.expires_at || v.valid_until;
+  return v ? String(v).slice(0, 10) : null;
+}
 function expiryState(d) {
   const ms = msLeft(d);
   if (ms <= 0) return "expired";
-  if (d.status === "evergreen") return "ongoing";        // explicitly long-running
-  if (!isFinite(ms)) return "ongoing";                    // no expiry date at all
+  if (d.status === "evergreen") return "ongoing";   // semantic, data-supported
+  if (!isFinite(ms)) return "missing";              // no expiry date at all
   const days = Math.floor(ms / 86400000);
-  if (days >= FAR_FUTURE_DAYS) return "unknown";          // 439d / 3727d / placeholder
-  return "soon";
+  if (days < SOON_MAX_DAYS) return "soon";
+  if (days < PLACEHOLDER_MIN_DAYS) return "longdated";
+  return "placeholder";
 }
 function countdown(value) {
   const state = expiryState(value);
   if (state === "expired") return { text: t("expired"), cls: "red", ms: 0 };
   if (state === "ongoing") return { text: t("ongoingLabel"), cls: "ongoing", ms: Infinity };
-  if (state === "unknown") return { text: t("endDateNA"), cls: "muted", ms: Infinity };
+  if (state === "missing" || state === "placeholder")
+    return { text: t("endDateNA"), cls: "muted", ms: Infinity };
+  if (state === "longdated") return { text: expiryDateLabel(value), cls: "muted", ms: msLeft(value) };
   const ms = msLeft(value);
   const days = Math.floor(ms / 86400000);
   if (days >= 2) return { text: t("dLeft", {n: days}), cls: days <= 3 ? "count" : "", ms };
@@ -800,6 +819,12 @@ function countdown(value) {
   const mins = Math.floor((ms % 3600000) / 60000);
   if (hrs === 0) return { text: `${Math.max(1, mins)}m left`, cls: "count red", ms };
   return { text: t("hLeft", {h: hrs, m: mins}), cls: "count red", ms };
+}
+const _MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function expiryDateLabel(value) {
+  const iso = expiryISO(value); if (!iso) return t("endDateNA");
+  const p = iso.split("-"); if (p.length !== 3) return t("endDateNA");
+  return t("endsOn", { date: `${_MON[(+p[1]) - 1]} ${+p[2]}, ${p[0]}` });
 }
 // Ending tab selection. Preserve the 3-day definition when trustworthy offers
 // exist; otherwise fall back to genuine 7-day offers, labelled "this week".

@@ -62,25 +62,41 @@ const countdown = ev("countdown"), expiryState = ev("expiryState"), isNews = ev(
 
 console.log("NOW anchored:", new Date(ev("NOW")).toISOString());
 
-console.log("\nFix A — expiry display:");
+console.log("\nFix A — expiry display (explicit states):");
 ok("today (0d) -> countdown (not Ongoing)", /left|m\b/.test(countdown(dPlus(0)).text));
 // 1-2d render as an hours countdown (e.g. "37h 35m") — still a real countdown, not a label.
 ok("tomorrow (1d) -> real countdown (has digits, not Ongoing/NA)",
    /\d/.test(countdown(dPlus(1)).text) && !/Ongoing|unavailable|expired/i.test(countdown(dPlus(1)).text));
 ok("3d -> '3d left'", countdown(dPlus(3)).text === "3d left");
 ok("4d -> '4d left'", countdown(dPlus(4)).text === "4d left");
-ok("89d -> '89d left'", countdown(dPlus(89)).text === "89d left");
-ok("90d -> 'End date unavailable'", countdown(dPlus(90)).text === "End date unavailable");
-ok("439d -> 'End date unavailable' (no number)", countdown(dPlus(439)).text === "End date unavailable");
+ok("89d -> '89d left' (soon, just under boundary)", countdown(dPlus(89)).text === "89d left");
+// 90d is the boundary: soon is < 90, so 90d is longdated -> shows the actual end date.
+ok("90d -> longdated shows end date, NOT a day number, NOT Ongoing",
+   /^Ends /.test(countdown(dPlus(90)).text) && !/d left/.test(countdown(dPlus(90)).text));
+ok("364d -> longdated shows end date (plausible far date)", /^Ends /.test(countdown(dPlus(364)).text));
+// placeholder: implausibly far (>= 365d) -> untrusted, no number, not Ongoing.
+ok("365d -> 'End date unavailable' (placeholder boundary)", countdown(dPlus(365)).text === "End date unavailable");
+ok("439d -> 'End date unavailable' (placeholder)", countdown(dPlus(439)).text === "End date unavailable");
 ok("3727d (Allied 2036) -> 'End date unavailable'", countdown(dPlus(3727)).text === "End date unavailable");
-ok("missing expiry -> 'Ongoing'", countdown(dPlus(0,{valid_until:null})).text === "Ongoing");
+// CORE REQUIREMENT: missing expiry must NOT be labelled "Ongoing".
+ok("missing expiry -> 'End date unavailable' (NOT Ongoing)",
+   countdown(dPlus(0,{valid_until:null})).text === "End date unavailable");
+ok("missing expiry state is 'missing', not 'ongoing'",
+   expiryState(dPlus(0,{valid_until:null})) === "missing");
 ok("expired (past) -> 'expired'", countdown(dPlus(-2)).text === "expired");
+// "Ongoing" reserved for evergreen only.
 ok("evergreen status -> 'Ongoing'", countdown(dPlus(0,{status:"evergreen"})).text === "Ongoing");
-ok("expiryState buckets correct",
+ok("only evergreen maps to 'ongoing'",
+   expiryState(dPlus(0,{status:"evergreen"}))==="ongoing" &&
+   expiryState(dPlus(0,{valid_until:null}))!=="ongoing" &&
+   expiryState(dPlus(500))!=="ongoing");
+ok("expiryState buckets explicit & distinct",
    expiryState(dPlus(-1))==="expired" && expiryState(dPlus(2))==="soon" &&
-   expiryState(dPlus(95))==="unknown" && expiryState(dPlus(0,{valid_until:null}))==="ongoing");
-ok("never renders a day number >= 90",
-   [90,120,439,3727].every(n => !/\b\d{2,}\b/.test(countdown(dPlus(n)).text)));
+   expiryState(dPlus(120))==="longdated" && expiryState(dPlus(400))==="placeholder" &&
+   expiryState(dPlus(0,{valid_until:null}))==="missing" &&
+   expiryState(dPlus(0,{status:"evergreen"}))==="ongoing");
+ok("never renders a day number >= 90 anywhere",
+   [90,120,364,365,439,3727].every(n => !/\b\d{2,}d left\b/.test(countdown(dPlus(n)).text)));
 
 console.log("\nFix B — news exclusion:");
 const newsSrc = { id:"rss_abc", status:"active", source:{type:"news"}, brand_type:"news", category:"utility",
