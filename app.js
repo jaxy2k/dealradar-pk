@@ -274,6 +274,10 @@ const I18N = {
     notifications: "🔔 Notifications",
     langToggle: "اردو",
     allCities: "🌍 All cities", ongoing: "ongoing", expired: "expired",
+    ongoingLabel: "Ongoing", endDateNA: "End date unavailable",
+    expiringThisWeek: "Expiring this week", ending3d: "Expiring within 3 days.",
+    endingWeek: "Expiring within 7 days.", endingEmpty: "No deals ending soon.",
+    backToTrending: "See trending deals",
     dLeft: "{n}d left", hLeft: "{h}h {m}m", anyPayment: "Any payment",
     workedToast: "👍 Worked! Est. saved Rs {n}", alertSet: "🔔 We'll alert you before it expires",
     alertRemoved: "Alert removed", hotToast: "▲ Marked as hot",
@@ -319,6 +323,10 @@ const I18N = {
     notifications: "🔔 اطلاعات",
     langToggle: "EN",
     allCities: "🌍 تمام شہر", ongoing: "جاری", expired: "ختم شدہ",
+    ongoingLabel: "جاری ہے", endDateNA: "تاریخ اختتام دستیاب نہیں",
+    expiringThisWeek: "اس ہفتے ختم", ending3d: "تین دن میں ختم۔",
+    endingWeek: "سات دن میں ختم۔", endingEmpty: "کوئی ڈیل جلد ختم نہیں ہو رہی۔",
+    backToTrending: "ٹرینڈنگ ڈیلز دیکھیں",
     dLeft: "{n} دن باقی", hLeft: "{h} گھنٹے {m} منٹ", anyPayment: "کوئی بھی ادائیگی",
     workedToast: "👍 کام کیا! تخمینہ بچت Rs {n}", alertSet: "🔔 ختم ہونے سے پہلے ہم آپ کو الرٹ کریں گے",
     alertRemoved: "الرٹ ہٹا دیا گیا", hotToast: "▲ ہاٹ مارک کیا گیا",
@@ -510,7 +518,7 @@ const AI = {
   chat(query) {
     const q = " " + query.toLowerCase().replace(/[?!.،]/g, " ") + " ";
     const deals = DATA?.deals || [];
-    const active = deals.filter(d => d.status !== "evergreen" && !isHidden(d));
+    const active = deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d));
 
     // Roman Urdu / Urdu normalizer → canonical tokens
     const has = re => re.test(q);
@@ -763,15 +771,55 @@ function msLeft(value) {
   return end && !Number.isNaN(end.getTime()) ? end - NOW : Infinity;
 }
 function daysUntil(value) { return Math.ceil(msLeft(value) / 86400000); }
+// Expiry trust model. msLeft() returns Infinity for missing/unparseable dates,
+// so we must never feed that into a day count. Classify each offer's expiry into
+// one of four honest states:
+//   expired  -> real date in the past
+//   soon     -> trustworthy near-term date (<= 90 days) -> show a real countdown
+//   ongoing  -> semantically long-running (status evergreen) or missing date
+//   unknown  -> a date exists but is implausibly far / placeholder -> do NOT show a number
+const FAR_FUTURE_DAYS = 90;
+function expiryState(d) {
+  const ms = msLeft(d);
+  if (ms <= 0) return "expired";
+  if (d.status === "evergreen") return "ongoing";        // explicitly long-running
+  if (!isFinite(ms)) return "ongoing";                    // no expiry date at all
+  const days = Math.floor(ms / 86400000);
+  if (days >= FAR_FUTURE_DAYS) return "unknown";          // 439d / 3727d / placeholder
+  return "soon";
+}
 function countdown(value) {
+  const state = expiryState(value);
+  if (state === "expired") return { text: t("expired"), cls: "red", ms: 0 };
+  if (state === "ongoing") return { text: t("ongoingLabel"), cls: "ongoing", ms: Infinity };
+  if (state === "unknown") return { text: t("endDateNA"), cls: "muted", ms: Infinity };
   const ms = msLeft(value);
-  if (ms <= 0) return { text: t("expired"), cls: "red", ms: 0 };
   const days = Math.floor(ms / 86400000);
   if (days >= 2) return { text: t("dLeft", {n: days}), cls: days <= 3 ? "count" : "", ms };
   const hrs = Math.floor(ms / 3600000);
   const mins = Math.floor((ms % 3600000) / 60000);
   if (hrs === 0) return { text: `${Math.max(1, mins)}m left`, cls: "count red", ms };
   return { text: t("hLeft", {h: hrs, m: mins}), cls: "count red", ms };
+}
+// Ending tab selection. Preserve the 3-day definition when trustworthy offers
+// exist; otherwise fall back to genuine 7-day offers, labelled "this week".
+// Only offers with a RELIABLE near-term expiry (state "soon") qualify — never
+// imply urgency for a placeholder/untrustworthy date. Computed from data so the
+// banner, list and empty-state always agree regardless of render order.
+function endingCandidates(all) {
+  return all.filter(d => d.status !== "evergreen" && (d.discount?.value || 0) > 0 &&
+    expiryState(d) === "soon" && daysUntil(d) >= 0 && daysUntil(d) <= 7);
+}
+function endingMode(all) {
+  const list = all || DATA.deals.filter(baseFilter);
+  const soon = endingCandidates(list).filter(d => daysUntil(d) <= 3);
+  return soon.length ? "3d" : "7d";
+}
+function endingDeals(all) {
+  const mode = endingMode(all);
+  const max = mode === "3d" ? 3 : 7;
+  return endingCandidates(all).filter(d => daysUntil(d) <= max)
+    .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
 }
 function hoursSince(iso) { return iso ? (NOW - new Date(iso)) / 3600000 : Infinity; }
 
@@ -902,8 +950,16 @@ function payMatch(d) {
 }
 function isMine(d) { return state.myPay.size > 0 && payMatch(d); }
 function isHidden(d) { return (d.community?.reports_expired || 0) >= 3; }
+// News/editorial headlines are NOT offers. Exclude them from every offer surface
+// (tabs, search, recommendations) using the actual source schema. Records are
+// kept in the underlying dataset — only the offer feeds filter them out.
+function isNews(d) {
+  return d?.source?.type === "news" || d?.brand_type === "news" ||
+         /^rss_/i.test(String(d?.id || ""));
+}
 
 function baseFilter(d) {
+  if (isNews(d)) return false;
   if (isHidden(d)) return false;
   if (d.status !== "evergreen" && msLeft(d) <= 0) return false;
   if (state.hiddenBrands.has(d.brand)) return false;
@@ -923,8 +979,7 @@ function tabDeals() {
   switch (state.tab) {
     case "trending": return byHeat(all.filter(d => d.status !== "evergreen" && d.status !== "spotted"));
     case "foryou": return byHeat(all.filter(d => isMine(d) && d.status !== "evergreen"));
-    case "ending": return all.filter(d => d.status !== "evergreen" && (d.discount?.value || 0) > 0 && msLeft(d) > 0 && daysUntil(d) <= 3)
-      .sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
+    case "ending": return endingDeals(all);
     case "evergreen": return all.filter(d => d.status === "evergreen").sort((a, b) => (b.community?.worked || 0) - (a.community?.worked || 0));
     case "spotted": return all.filter(d => d.status === "spotted" || d.status === "reviewing" || d.source?.type === "community" || d.source?.type === "founder" || isLocalDeal(d))
       .sort((a, b) => new Date(b.first_seen_at || b.source?.captured_at || 0) - new Date(a.first_seen_at || a.source?.captured_at || 0));
@@ -1102,6 +1157,10 @@ function renderFeed() {
       trending: t("emptyTrending")
     };
     const icons = { foryou: "🎯", ending: "⏳", evergreen: "♾️", spotted: "👀", trending: "🔥", calendar: "📅" };
+    if (state.tab === "ending") {
+      $("#feed").innerHTML = `<div class="empty"><div style="font-size:34px;margin-bottom:10px">⏳</div>${t("endingEmpty")}<div style="margin-top:14px"><button class="btn-secondary" id="endingToTrending" type="button">${t("backToTrending")}</button></div></div>`;
+      return;
+    }
     $("#feed").innerHTML = `<div class="empty"><div style="font-size:40px;margin-bottom:12px">${icons[state.tab] || "📡"}</div>${emptyMsgs[state.tab] || "No deals match your filters."}</div>`;
     return;
   }
@@ -1260,19 +1319,22 @@ function renderFeedContent(list) {
 
 // ---- ENDING tab: grouped by urgency bucket, countdown-first ----
 function renderEndingTab(list) {
+  const mode = endingMode();
+  const soonLabel = mode === "3d" ? "Next 3 Days" : "Later this week";
+  const headLabel = mode === "3d" ? t("ending3d") : t("expiringThisWeek");
   const buckets = [
     { key: "today", label: "Ends Today", test: d => daysUntil(d) <= 0 },
     { key: "tomorrow", label: "Ends Tomorrow", test: d => daysUntil(d) === 1 },
-    { key: "soon", label: "Next 3 Days", test: d => daysUntil(d) >= 2 }
+    { key: "soon", label: soonLabel, test: d => daysUntil(d) >= 2 }
   ];
-  let html = "";
+  let html = `<div class="section-head"><span class="section-icon">⏳</span> ${headLabel.replace(/[.]$/, "")} <span class="section-count">${list.length}</span></div>`;
   for (const b of buckets) {
     const items = list.filter(b.test).sort((x, y) => new Date(x.valid_until) - new Date(y.valid_until)).slice(0, 20);
     if (!items.length) continue;
     html += `<div class="section-head${b.key === "today" ? " urgent" : ""}"><span class="section-icon">${b.key === "today" ? "🚨" : b.key === "tomorrow" ? "⏰" : "⏳"}</span> ${b.label} <span class="section-count">${items.length}</span></div>`;
     html += items.map(dealCard).join("");
   }
-  return html || `<div class="empty"><div style="font-size:40px;margin-bottom:12px">⏳</div>${t("emptyEnding")}</div>`;
+  return html;
 }
 
 // ---- FOR YOU tab: grouped by wallet/card the user selected ----
@@ -1402,12 +1464,15 @@ function renderBanner() {
     }
   }
   if (!inner && (state.tab === "trending" || state.tab === "ending")) {
-    const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2);
+    const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2);
     if (soon.length) inner = `<div class="banner-card">⏳ <b>${t("flashBanner", {n: soon.length, s: soon.length > 1 ? "s" : ""})}</b> — ${[...new Set(soon.map(s => brandOf(s.brand).name))].slice(0, 3).join(", ")}${soon.length > 3 ? " +more" : ""}</div>`;
   }
-  if (!inner) inner = `<div class="banner-info">${tabInfo.hint}</div>`;
+  if (!inner) {
+    const hint = (state.tab === "ending") ? t(endingMode() === "3d" ? "ending3d" : "endingWeek") : tabInfo.hint;
+    inner = `<div class="banner-info">${hint}</div>`;
+  }
   $("#banner").innerHTML = inner;
-  const live = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d)).length;
+  const live = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d)).length;
   // Freshness indicator
   let freshTag = "";
   if (DATA.meta?.generated_at) {
@@ -1432,7 +1497,7 @@ function renderWalletPanel() {
 
 function renderBell() {
   const unread = state.notifications.filter(n => !n.read).length;
-  const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2).length;
+  const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2).length;
   $("#bellCount").textContent = unread + soon;
 }
 
@@ -2822,7 +2887,7 @@ function openFounderSubmit() {
 // ---- notification center ----
 function openNotifications() {
   pushNav("notifications");
-  const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2);
+  const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2);
   const savedDeals = DATA.deals.filter(d => state.saved.has(d.id) && !isHidden(d));
   let html = `<div class="grab"></div><h3>🔔 Notifications</h3>`;
 
@@ -3117,6 +3182,10 @@ function wire() {
   });
   $("#feed").addEventListener("click", e => {
     if (e.target.closest("#openWalletFromEmpty")) { $("#walletBtn").click(); }
+    if (e.target.closest("#endingToTrending")) {
+      const tabBtn = document.querySelector('#tabbar [data-tab="trending"]');
+      if (tabBtn) tabBtn.click();
+    }
   });
   $("#walletBtn").addEventListener("click", () => {
     const wp = $("#walletPanel");
