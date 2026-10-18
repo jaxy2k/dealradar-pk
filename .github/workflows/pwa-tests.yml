@@ -17,6 +17,8 @@ name: "PWA + Static Checks"
       - "test_pwa.py"
       - "test_sw_runtime.js"
       - "test_pwa_browser.js"
+      - "test_fixes.js"
+      - "test_live_data.js"
       - "test_shopify_adapter.py"
       - "test_shopify_integration.py"
       - "shopify_adapter.py"
@@ -36,6 +38,10 @@ jobs:
           python3 test_pwa.py
       - name: Service-worker runtime checks (node, stubbed SW scope)
         run: node test_sw_runtime.js
+      - name: Frontend regression suites (node vm harnesses)
+        run: |
+          node test_fixes.js
+          node test_live_data.js
       - name: Browser PWA verification (headless Chromium, opportunistic)
         run: |
           npm install --no-audit --no-fund puppeteer-core@23 >/dev/null 2>&1 || true

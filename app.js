@@ -256,6 +256,8 @@ const I18N = {
     minSpend: "min Rs {n}", capRs: "cap Rs {n}",
     workedRate: "{n}% worked",
     emptyTrending: "No trending deals right now. Check back soon!",
+    fallbackBanner: "Couldn't load live offers — showing the built-in sample list. Offers may be out of date.",
+    retry: "Retry",
     emptyForYou: "Add your wallets & cards (👛) to see deals matched to you.",
     emptyForYouSet: "No deals match your selected cards yet. Check back soon!",
     emptyEnding: "No deals ending soon. You're all caught up!",
@@ -306,6 +308,8 @@ const I18N = {
     minSpend: "کم از کم Rs {n}", capRs: "کیپ Rs {n}",
     workedRate: "{n}% کام کیا",
     emptyTrending: "ابھی کوئی ٹرینڈنگ ڈیل نہیں۔ جلد واپس آئیں!",
+    fallbackBanner: "لائیو آفرز لوڈ نہیں ہو سکیں — بلک ان نمونہ فہرست دکھائی جا رہی ہے۔ آفرز پرانی ہو سکتی ہیں۔",
+    retry: "دوبارہ کوشش",
     emptyForYou: "اپنے والٹس اور کارڈز (👛) شامل کریں تاکہ آپ سے میچنگ ڈیلز دکھیں۔",
     emptyForYouSet: "آپ کے منتخب کارڈز سے کوئی ڈیل میچ نہیں ہو رہی۔ جلد واپس آئیں!",
     emptyEnding: "کوئی ڈیل جلد ختم نہیں ہو رہی۔ آپ اپ ٹو ڈیٹ ہیں!",
@@ -1491,8 +1495,14 @@ function renderCalendar(list) {
 function renderBanner() {
   const tabInfo = TABS[state.tab];
   let inner = "";
-  // Stale data warning
-  if (DATA.meta?.generated_at) {
+  // Provenance: live feed vs built-in fallback. A failed live load must never look
+  // like "the inventory is empty" — it says so explicitly and offers retry.
+  // Only once an attempt has actually failed (liveAttempted) — never during a normal boot.
+  if (liveAttempted && dataProvenance !== "live") {
+    inner = `<div class="banner-card" style="border-color:var(--warn);color:var(--warn)">⚠️ ${t("fallbackBanner")} <button class="banner-retry" id="retryLive" type="button">${t("retry")}</button></div>`;
+  }
+  // Stale data warning (live feed itself has gone stale)
+  if (!inner && DATA.meta?.generated_at) {
     const ageH = (NOW - new Date(DATA.meta.generated_at)) / 36e5;
     if (ageH > 12) {
       inner = `<div class="banner-card" style="border-color:var(--warn);color:var(--warn)">⚠️ Data is ${Math.round(ageH)}h old — deals may have changed. Pull to refresh or check back later.</div>`;
@@ -3194,6 +3204,8 @@ function wire() {
     }, 250);
   });
   $("#cityChips").addEventListener("click", e => { const b = e.target.closest("[data-city]"); if (!b) return; state.city = b.dataset.city; renderChips(); scheduleRender(); updateBackBtn(); });
+  // Retry path on the fallback banner (delegated: #banner innerHTML is re-rendered freely)
+  $("#banner").addEventListener("click", e => { if (e.target.closest("#retryLive")) fetchLive(); });
   $("#feed").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (!b) return; state.cat = b.dataset.cat; scheduleRender(); updateBackBtn(); });
 
   // Search suggestion tiles
@@ -3343,11 +3355,35 @@ function wire() {
 // ---- LIVE DATA REFRESH ----
 let lastFetch = null;
 let refreshInterval = null;
-let isRefreshing = false;
+let inflight = null;        // single in-flight controller: startup, timer and pull-to-refresh share it
+let dataProvenance = null;  // "live" = current feed · null = seed/offline fallback (banner label)
+let liveAttempted = false;  // true after the first live-fetch attempt settles (avoid banner flicker on boot)
 
-async function fetchLive(silent = false) {
-  if (isRefreshing) return;
-  isRefreshing = true;
+// Guard against replacing a working dataset with a bad payload.
+// Contract (scraper.py output + build.py): { meta, brands[], deals[] }; every deal has a
+// string id. Empty deals[] is VALID — the scraper can legitimately find zero offers —
+// but only when the payload is well-formed AND meta.generated_at is fresh (< 12h).
+// A stale empty file (e.g. a cached error response) must never wipe a working dataset.
+function validateLivePayload(fresh) {
+  if (!fresh || typeof fresh !== "object") return { ok: false, reason: "not an object" };
+  if (!Array.isArray(fresh.deals) || !Array.isArray(fresh.brands)) return { ok: false, reason: "missing deals/brands arrays" };
+  if (!fresh.deals.every(d => d && typeof d === "object" && typeof d.id === "string")) return { ok: false, reason: "record without id" };
+  if (fresh.deals.length) return { ok: true };
+  const gen = fresh.meta && fresh.meta.generated_at ? new Date(fresh.meta.generated_at).getTime() : NaN;
+  if (Number.isNaN(gen)) return { ok: false, reason: "empty dataset without generated_at" };
+  if (gen - Date.now() > 12 * 36e5) return { ok: false, reason: "empty dataset too far in the future" };
+  if ((Date.now() - gen) / 36e5 > 12) return { ok: false, reason: "empty dataset older than 12h" };
+  return { ok: true };
+}
+
+// Fetch + validate + merge. Concurrent callers await the SAME request (no stampede).
+function fetchLive(silent = false) {
+  if (inflight) return inflight;
+  inflight = doFetchLive(silent).finally(() => { inflight = null; });
+  return inflight;
+}
+
+async function doFetchLive(silent) {
   try {
     const base = API_URL || "";
     // Relative paths when same-origin so this works under GitHub Pages project
@@ -3357,43 +3393,56 @@ async function fetchLive(silent = false) {
     let fresh = null;
     for (const path of paths) {
       try {
-        const r = await fetch(path);
+        // 15s cap: a hung request on flaky mobile networks must not block the feed.
+        // AbortController guard keeps very old Android WebViews working (no abort = still fetch).
+        const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const tOut = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+        let r;
+        try {
+          r = await fetch(path, { cache: "no-cache", signal: ctrl ? ctrl.signal : undefined }); // revalidate past the Pages 600s CDN cache
+        } finally { if (tOut) clearTimeout(tOut); }
         if (!r.ok) continue;
         fresh = await r.json();
         break;
       } catch (e) { continue; }
     }
     if (!fresh) throw new Error("No live source");
-    if (fresh.deals && fresh.deals.length) {
-      // Merge: keep local community state, update deal data
-      const localMap = new Map((DATA.deals || []).map(d => [d.id, d]));
-      DATA.deals = normalizeDataset({ deals: fresh.deals.map(fd => {
-        const local = localMap.get(fd.id);
-        if (local) {
-          fd.community = { ...fd.community, ...local.community };
-        }
-        return fd;
-      }) }).deals;
-      DATA.brands = fresh.brands || DATA.brands;
-      DATA.meta = { ...DATA.meta, ...fresh.meta };
-      restoreLocalDeals(); // re-merge device-local founder/community/screenshot deals
-      await Sync.pullDeals(); // re-merge shared Supabase deals (fetchLive replaced DATA.deals)
-      flushSyncQueue(); // retry any deals/votes that failed to push while offline
-      lastFetch = fresh.meta?.server_time || new Date().toISOString();
-      NOW = new Date(); // Device clock always determines expiration
-      heatCache.clear(); trustCache.clear(); brandMap.clear();
-      renderAll();
-      const newCount = fresh.deals.length - (localMap.size || 0);
-      if (!silent) {
-        if (newCount > 0) toast(`🆕 ${newCount} new deals just dropped!`);
-        else toast("✓ Deals up to date");
+    const v = validateLivePayload(fresh);
+    if (!v.ok) throw new Error("Invalid live payload: " + v.reason);
+    // Valid payload (including a fresh, legitimately-empty one): replace deals wholesale.
+    // Merge keeps local community state, device-local submissions and Supabase rows.
+    const localMap = new Map((DATA.deals || []).map(d => [d.id, d]));
+    DATA.deals = normalizeDataset({ deals: fresh.deals.map(fd => {
+      const local = localMap.get(fd.id);
+      if (local) {
+        fd.community = { ...fd.community, ...local.community };
       }
+      return fd;
+    }) }).deals;
+    DATA.brands = fresh.brands.length ? fresh.brands : DATA.brands;
+    DATA.meta = { ...DATA.meta, ...fresh.meta };
+    dataProvenance = "live";
+    restoreLocalDeals(); // re-merge device-local founder/community/screenshot deals
+    await Sync.pullDeals(); // re-merge shared Supabase deals (fetchLive replaced DATA.deals)
+    flushSyncQueue(); // retry any deals/votes that failed to push while offline
+    lastFetch = fresh.meta?.server_time || new Date().toISOString();
+    NOW = new Date(); // Device clock always determines expiration
+    heatCache.clear(); trustCache.clear(); brandMap.clear();
+    renderAll();
+    const newCount = fresh.deals.length - (localMap.size || 0);
+    if (!silent) {
+      if (newCount > 0) toast(`🆕 ${newCount} new deals just dropped!`);
+      else toast("✓ Deals up to date");
     }
   } catch (e) {
+    // Network error, timeout, invalid JSON, bad payload: keep the current dataset.
+    // NEVER treat a failed fetch as an empty inventory.
     console.warn("Live refresh failed:", e.message);
     if (!silent) toast("📴 Offline — showing cached deals");
+  } finally {
+    liveAttempted = true;
+    if (dataProvenance !== "live") renderBanner(); // label the fallback only once failure is known
   }
-  isRefreshing = false;
 }
 
 function setupLiveRefresh() {
@@ -3534,7 +3583,7 @@ function setupPWA() {
     restoreLocalDeals(); // merge founder/community/screenshot deals saved on this device
     // Supabase: restore/sign-in anon identity, then pull shared community deals
     SB.restoreSession();
-    (async () => {
+    const bootIdentity = (async () => {
       if (SB.enabled && !SB.userId) await SB.signInAnon();
       const n = await Sync.pullDeals();
       if (n > 0) { brandMap.clear(); renderAll(); }
@@ -3544,6 +3593,13 @@ function setupPWA() {
     $("#langBtn").textContent = t("langToggle");
     renderWalletPanel(); syncTabs(); renderAll(); wire(); startTicking(); setTimeout(() => Notif.checkExpiring(), 3000);
     setupLiveRefresh();
+    // Load the current live feed immediately (silent: no startup toast/spinner wall)
+    // instead of waiting 5 minutes for the first timer tick. Chained after anon
+    // sign-in so fetchLive's internal Sync.pullDeals() merge doesn't race it, but
+    // capped at 2s: a hanging Supabase must never delay the live offer feed.
+    // The seed render above stays on screen until this resolves, then views update
+    // in place. If it fails, the seed remains as an explicitly-labelled fallback.
+    Promise.race([bootIdentity, new Promise(res => setTimeout(res, 2000))]).then(() => fetchLive(true));
     // dismiss splash once first paint is ready
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const sp = $("#splash");
