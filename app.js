@@ -251,6 +251,12 @@ const I18N = {
     details: "Details", hot: "Hot", voted: "Voted", worked: "Worked", alert: "Alert", saved: "Saved", share: "Share",
     compare: "Compare", activeDeals: "{n} active deals",
     trending: "Trending", foryou: "For You", ending: "Ending", evergreen: "Always On", spotted: "Spotted", calendar: "Calendar",
+    // Rozana: offer-type chips + home sections (text labels, never colour alone)
+    otBank: "Bank card", otWallet: "Wallet", otFood: "Food", otDeal: "Deal",
+    filterAllTypes: "All types", yourCard: "Your card", endingSoon: "Ending soon",
+    tab_trending_head: "Top offers", walletSetup: "Set up wallets & cards", savedHead: "Your saved deals",
+    nudgeText: "Add the cards & wallets you carry to see only offers you can use.",
+    nudgeSetup: "Add my cards", nudgeDismiss: "Dismiss wallet prompt",
     verified: "✓ Verified", unverified: "Unverified",
     officialPage: "official page", viaSocial: "via {p}",
     minSpend: "min Rs {n}", capRs: "cap Rs {n}",
@@ -258,7 +264,7 @@ const I18N = {
     emptyTrending: "No trending deals right now. Check back soon!",
     fallbackBanner: "Couldn't load live offers — showing the built-in sample list. Offers may be out of date.",
     retry: "Retry",
-    emptyForYou: "Add your wallets & cards (👛) to see deals matched to you.",
+    emptyForYou: "Add your wallets & cards to see deals matched to you.",
     emptyForYouSet: "No deals match your selected cards yet. Check back soon!",
     emptyEnding: "No deals ending soon. You're all caught up!",
     emptyEvergreen: "No always-on deals right now.",
@@ -303,6 +309,11 @@ const I18N = {
     details: "تفصیل", hot: "ہاٹ", voted: "ووٹ", worked: "کام کیا", alert: "الرٹ", saved: "سیوڈ", share: "شیئر",
     compare: "موازنہ", activeDeals: "{n} ایکٹو ڈیلز",
     trending: "ٹرینڈنگ", foryou: "آپ کے لیے", ending: "ختم ہو رہی", evergreen: "ہمیشہ", spotted: "اسپاٹڈ", calendar: "کیلنڈر",
+    otBank: "بینک کارڈ", otWallet: "والٹ", otFood: "کھانا", otDeal: "ڈیل",
+    filterAllTypes: "تمام اقسام", yourCard: "آپ کا کارڈ", endingSoon: "جلد ختم",
+    tab_trending_head: "بہترین آفرز", walletSetup: "والٹس اور کارڈز مرتب کریں", savedHead: "آپ کی محفوظ ڈیلز",
+    nudgeText: "وہ کارڈز اور والٹس شامل کریں جو آپ ساتھ رکھتے ہیں تاکہ صرف قابلِ استعمال آفرز دکھائی دیں۔",
+    nudgeSetup: "میرے کارڈز شامل کریں", nudgeDismiss: "یاد دہانی بند کریں",
     verified: "✓ تصدیق شدہ", unverified: "غیر تصدیق شدہ",
     officialPage: "آفیشل پیج", viaSocial: "{p} سے",
     minSpend: "کم از کم Rs {n}", capRs: "کیپ Rs {n}",
@@ -310,7 +321,7 @@ const I18N = {
     emptyTrending: "ابھی کوئی ٹرینڈنگ ڈیل نہیں۔ جلد واپس آئیں!",
     fallbackBanner: "لائیو آفرز لوڈ نہیں ہو سکیں — بلک ان نمونہ فہرست دکھائی جا رہی ہے۔ آفرز پرانی ہو سکتی ہیں۔",
     retry: "دوبارہ کوشش",
-    emptyForYou: "اپنے والٹس اور کارڈز (👛) شامل کریں تاکہ آپ سے میچنگ ڈیلز دکھیں۔",
+    emptyForYou: "اپنے والٹس اور کارڈز شامل کریں تاکہ آپ سے میچنگ ڈیلز دکھیں۔",
     emptyForYouSet: "آپ کے منتخب کارڈز سے کوئی ڈیل میچ نہیں ہو رہی۔ جلد واپس آئیں!",
     emptyEnding: "کوئی ڈیل جلد ختم نہیں ہو رہی۔ آپ اپ ٹو ڈیٹ ہیں!",
     emptyEvergreen: "ابھی کوئی ہمیشہ والی ڈیل نہیں۔",
@@ -379,17 +390,17 @@ const catKey = { all: "all", food: "catFood", shopping: "catShopping", ecommerce
 const CATS = [["all", "All"], ["food", "Food"], ["shopping", "Shopping"], ["ecommerce", "E-commerce"], ["retail", "Retail"], ["fuel", "Fuel"], ["travel", "Travel"], ["telecom", "Telecom"], ["grocery", "Grocery"], ["electronics", "Electronics"], ["fashion", "Fashion"], ["utilities", "Utilities"]];
 const CITIES = ["All", "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Multan", "Faisalabad"];
 const TABS = {
-  trending: { label: "Trending", hint: "🔥 Ranked by heat — urgency, votes, trust." },
-  foryou: { label: "For You", hint: "🎯 Matched to your wallets & cards." },
-  ending: { label: "Ending", hint: "⏳ Expiring within 3 days." },
-  evergreen: { label: "Always On", hint: "♾️ Long-running offers & standing vouchers." },
-  spotted: { label: "Spotted", hint: "👀 Community submissions. Tap ＋ to add." },
-  calendar: { label: "Calendar", hint: "📅 Deals by expiry date — never miss a deadline." }
+  trending: { label: "Trending", hint: "Ranked by heat — urgency, votes, trust." },
+  foryou: { label: "For You", hint: "Matched to your wallets & cards." },
+  ending: { label: "Ending", hint: "Expiring within 3 days." },
+  evergreen: { label: "Always On", hint: "Long-running offers & standing vouchers." },
+  spotted: { label: "Spotted", hint: "Community submissions. Tap the + button to add." },
+  calendar: { label: "Calendar", hint: "Deals by expiry date — never miss a deadline." }
 };
 
 let NOW = new Date(); // Production: real time. Prototype: overridden by meta.now after data load.
 const state = {
-  tab: "trending", q: "", city: "All", cat: "all",
+  tab: "trending", q: "", city: "All", cat: "all", otype: "all",
   myPay: new Set(JSON.parse(store.get("dr_pay", "[]"))),
   voted: new Set(JSON.parse(store.get("dr_voted", "[]"))),
   saved: new Set(JSON.parse(store.get("dr_saved", "[]"))),
@@ -397,7 +408,8 @@ const state = {
   pinnedBrands: new Set(JSON.parse(store.get("dr_pinned", "[]"))),
   savings: JSON.parse(store.get("dr_savings", "0")),
   notifications: JSON.parse(store.get("dr_notifs", "[]")),
-  onboarded: store.get("dr_onboarded", "false") === "true"
+  onboarded: store.get("dr_onboarded", "false") === "true",
+  walletNudgeDismissed: store.get("dr_wallet_nudge_dismissed", "false") === "true"
 };
 let DATA = null;
 let tickInterval = null;
@@ -723,8 +735,8 @@ function goBack() {
     return;
   }
   // 4. If filters are active → clear filters
-  if (state.city !== "All" || state.cat !== "all") {
-    state.city = "All"; state.cat = "all";
+  if (state.city !== "All" || state.cat !== "all" || state.otype !== "all") {
+    state.city = "All"; state.cat = "all"; state.otype = "all";
     renderChips(); renderFeed(); updateBackBtn();
     return;
   }
@@ -953,6 +965,44 @@ function merchantTrust(brandId) {
   return total ? Math.round((worked / total) * 100) : null;
 }
 
+// ---- Rozana line-icon helper ----
+// Every nav/control glyph in the app comes from the SVG sprite in index.html.
+// Emoji may appear inside offer *content* but never as the primary icon system.
+function ic(id, cls) { return `<svg class="ic${cls ? " " + cls : ""}" aria-hidden="true"><use href="#ic-${id}"/></svg>`; }
+
+// ---- offer type: derived from REAL fields only. Mirrors scraper.classify_offer_type
+// (same tokens, same rule order) so the UI never invents a category the data doesn't
+// support. Unresolved stays null -> no chip (we never guess).
+const WALLET_TOKENS = ["easypaisa", "easypaisa_wallet", "easypaisa_debit", "jazzcash", "jazzcash_app", "jazzcash_qr", "jazzcash_debit"];
+const CARD_MARKERS = ["credit", "debit", "card", "visa", "master"];
+function deriveOfferType(d) {
+  if (d.offer_type) return d.offer_type;                                   // R1: tagged upstream wins
+  if (d.source?.type === "news" || d.brand_type === "news") return null;   // R2: news is not an offer
+  const pay = (d.eligibility?.payment || []).map(p => String(p).toLowerCase());
+  const walletHits = pay.filter(p => WALLET_TOKENS.includes(p));
+  const cardHits = pay.filter(p => p !== "any" && !WALLET_TOKENS.includes(p) && CARD_MARKERS.some(m => p.includes(m)));
+  if (walletHits.length && cardHits.length) return null;                   // R3: mixed = ambiguous
+  if (walletHits.length) return "WALLET_OFFER";                            // R4
+  if (cardHits.length) return "BANK_CARD_OFFER";                           // R5
+  if (d.brand_type === "bank") return null;                                // R6: bank w/o instrument = ambiguous
+  if (d.category === "food" && (!pay.length || pay.every(p => p === "any"))) return "FOOD_PROMOTION"; // R7
+  return null;                                                             // R8: untagged
+}
+// PRODUCT_DEAL comes only from the upstream tag (the scraper's product branch);
+// the UI must not synthesise it from category alone.
+const OFFER_TYPES = {
+  BANK_CARD_OFFER: { cls: "ot-bank", icon: "card", label: "otBank" },
+  WALLET_OFFER:    { cls: "ot-wallet", icon: "wallet", label: "otWallet" },
+  FOOD_PROMOTION:  { cls: "ot-food", icon: "food", label: "otFood" },
+  PRODUCT_DEAL:    { cls: "ot-deal", icon: "bag", label: "otDeal" }
+};
+function offerTypeChip(d) {
+  const k = deriveOfferType(d);
+  const ot = k && OFFER_TYPES[k];
+  if (!ot) return "";
+  return `<span class="ot-chip ${ot.cls}">${ic(ot.icon)}${t(ot.label)}</span>`;
+}
+
 // ---- helpers ----
 const brandMap = new Map();
 function brandOf(id) {
@@ -994,6 +1044,7 @@ function baseFilter(d) {
   if (state.hiddenBrands.has(d.brand)) return false;
   if (!cityMatch(d)) return false;
   if (state.cat !== "all" && d.category !== state.cat) return false;
+  if (state.otype !== "all" && deriveOfferType(d) !== state.otype) return false;
   const q = state.q.trim().toLowerCase();
   if (q) {
     const hay = (d.title + " " + d.summary + " " + brandOf(d.brand).name + " " + (d.eligibility?.merchant || "") + " " + d.cities.join(" ") + " " + d.category).toLowerCase();
@@ -1086,48 +1137,60 @@ const Notif = {
 };
 
 // ---- deal card ----
+// Expiry pill body: an icon that matches the TRUST STATE, plus the honest text.
+// missing/placeholder both read "End date unavailable" (info icon) — never a
+// fake countdown, never silently "Ongoing".
+function expiryPillInner(d) {
+  const s = expiryState(d);
+  const glyph = s === "soon" || s === "expired" ? ic("clock")
+    : s === "longdated" ? ic("calendar")
+    : s === "ongoing" ? ic("check")
+    : ic("info"); // missing / placeholder -> visibly unknown
+  return `${glyph}<span class="pill-tx">${countdown(d).text}</span>`;
+}
+
 function dealCard(d, opts = {}) {
   const b = brandOf(d.brand);
   const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const cd = countdown(d);
   const mine = isMine(d);
   const mi = d.merchant_info || {};
+  const monoStyle = mi.logo ? 'background:#fff' : `background:${b.color}`;
 
+  // Real logo when we have one; monogram fallback when we don't (or if it 404s).
   const logoHtml = mi.logo
-    ? `<div class="logo-badge" style="background:#fff"><img src="${esc(mi.logo)}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="var pp=this.parentElement;pp.innerHTML='${initials}';pp.style.background='${b.color}'"></div>`
+    ? `<div class="logo-badge" style="${monoStyle}"><img src="${esc(mi.logo)}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="var pp=this.parentElement;pp.innerHTML='${initials}';pp.style.background='${b.color}'"></div>`
     : b.logo
-    ? `<div class="logo-badge" style="background:${b.color}"><img src="${b.logo}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="this.parentElement.innerHTML='${initials}'"></div>`
-    : `<div class="logo-badge" style="background:${b.color}">${initials}</div>`;
+    ? `<div class="logo-badge" style="${monoStyle}"><img src="${b.logo}" alt="${esc(b.name)}" class="logo-img" loading="lazy" onerror="var pp=this.parentElement;pp.innerHTML='${initials}';pp.style.background='${b.color}'"></div>`
+    : `<div class="logo-badge mono" style="${b.color ? `background:${b.color}` : ""}">${initials}</div>`;
 
-  const discLabel = discountLabel(d.discount);
-  const capLabel = d.discount?.cap ? ` <span class="cap-txt">cap Rs ${Number(d.discount.cap).toLocaleString()}</span>` : "";
+  // Benefit only when a structured discount supports it. discountLabel()'s "Offer"
+  // fallback is not a benefit and would read as fake value, so it stays hidden.
+  const disc = d.discount;
+  const hasValue = !!disc && (disc.kind === "free_delivery" || disc.kind === "bogo" || Number(disc.value) > 0);
+  const discHtml = hasValue ? `<span class="disc">${esc(discountLabel(disc))}</span>` : "";
+  const capLabel = disc?.cap ? `<span class="cap-txt">${t("capRs", { n: Number(disc.cap).toLocaleString() })}</span>` : "";
   const cardType = d.eligibility?.card_type ? `<span class="card-type">${esc(d.eligibility.card_type)}</span>` : "";
   const flashTag = d.collect_required ? "Collect Now" : d.app_only ? "App Only" : d.code ? "Code Required" : d.limited_quantity ? "Limited Quantity" : isFlashDeal(d) ? "Limited Time" : "";
-  const founderBadge = d.founder_verified ? '<span class="founder-badge" title="Founder-verified">👑</span>' : "";
+  const merchant = mi.name || d.eligibility?.merchant;
+  const merchantLine = merchant && merchant.toLowerCase() !== b.name.toLowerCase() ? ` · <span class="mn">${esc(merchant)}</span>` : "";
+  const founderBadge = d.founder_verified ? `<span class="founder-badge" title="Founder-verified">${ic("crown")}</span>` : "";
 
   return `<article class="deal${mine ? " match" : ""}" data-id="${d.id}">
     ${logoHtml}
     <div class="deal-body">
-      <h3 class="deal-title">${founderBadge}${esc(crispTitle(d))}</h3>
+      <div class="deal-brand">${founderBadge}<span class="bn">${esc(b.name)}</span>${merchantLine}${offerTypeChip(d)}</div>
+      <h3 class="deal-title">${esc(crispTitle(d))}</h3>
       <div class="deal-sub">
-        <span class="disc">${discLabel}</span>${capLabel}
+        ${discHtml}${capLabel}
         ${cardType}
         ${flashTag ? `<span class="card-type">${flashTag}</span>` : ""}
-        <span class="pill ${cd.cls}" data-countdown="${d.id}">${cd.text}</span>
-        ${mine ? '<span class="matchflag">your card</span>' : ""}
+        <span class="pill ${cd.cls}" data-countdown="${d.id}">${expiryPillInner(d)}</span>
+        ${mine ? `<span class="matchflag">${ic("check")}${t("yourCard")}</span>` : ""}
       </div>
     </div>
-    <div class="deal-arrow">›</div>
+    <div class="deal-arrow">${ic("chev-r")}</div>
   </article>`;
-}
-
-function heroLogo(d) {
-  const b = brandOf(d.brand);
-  const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  const src = d.merchant_info?.logo || b.logo;
-  return `<div class="hero-logo" style="background:${src ? "#fff" : b.color}">${src
-    ? `<img src="${esc(src)}" alt="${esc(d.eligibility?.merchant || b.name)}" onerror="var pp=this.parentElement;pp.textContent='${initials}';pp.style.background='${b.color}'">`
-    : initials}</div>`;
 }
 
 function similarGroup(deals) {
@@ -1162,11 +1225,16 @@ function scheduleRender() {
 }
 
 let cityFallbackActive = false;
+// Paint sequence guard: the skeleton path defers its paint by 150ms. If a fresher
+// render (e.g. live JSON landing mid-skeleton) happens first, the stale timer must
+// not overwrite it with the list captured before the update.
+let feedSeq = 0;
 function cityFallbackBanner() {
   if (!cityFallbackActive) return "";
-  return `<div class="city-fallback">📍 Nothing live in <b>${esc(state.city)}</b> right now — showing deals that work across Pakistan. Spotted something local? Tap ＋ and be the first to share it!</div>`;
+  return `<div class="city-fallback">${ic("pin")}<span>Nothing live in <b>${esc(state.city)}</b> right now — showing deals that work across Pakistan. Spotted something local? Use the + button and be the first to share it!</span></div>`;
 }
 function renderFeed() {
+  const seq = ++feedSeq;
   let list = tabDeals();
   let cityFallback = false;
   if (!list.length && state.city !== "All") {
@@ -1186,19 +1254,19 @@ function renderFeed() {
       spotted: t("emptySpotted"),
       trending: t("emptyTrending")
     };
-    const icons = { foryou: "🎯", ending: "⏳", evergreen: "♾️", spotted: "👀", trending: "🔥", calendar: "📅" };
+    const glyph = { foryou: "target", ending: "clock", evergreen: "infinity", spotted: "eye", trending: "trend", calendar: "calendar" };
     if (state.tab === "ending") {
-      $("#feed").innerHTML = `<div class="empty"><div style="font-size:34px;margin-bottom:10px">⏳</div>${t("endingEmpty")}<div style="margin-top:14px"><button class="btn-secondary" id="endingToTrending" type="button">${t("backToTrending")}</button></div></div>`;
+      $("#feed").innerHTML = `<div class="empty">${ic("clock")}<p>${t("endingEmpty")}</p><div style="margin-top:14px"><button class="btn-secondary" id="endingToTrending" type="button">${t("backToTrending")}</button></div></div>`;
       return;
     }
-    $("#feed").innerHTML = `<div class="empty"><div style="font-size:40px;margin-bottom:12px">${icons[state.tab] || "📡"}</div>${emptyMsgs[state.tab] || "No deals match your filters."}</div>`;
+    $("#feed").innerHTML = `<div class="empty">${ic(glyph[state.tab] || "info")}<p>${emptyMsgs[state.tab] || "No deals match your filters."}</p></div>`;
     return;
   }
   // Show skeleton briefly for perceived performance
   if (!state.feedRendered) {
     state.feedRendered = true;
     $("#feed").innerHTML = Array(4).fill(`<div class="skeleton" style="height:140px;border-radius:var(--radius)"></div>`).join("");
-    setTimeout(() => { renderFeedContent(list); }, 150);
+    setTimeout(() => { if (seq === feedSeq) renderFeedContent(list); }, 150);
     return;
   }
   renderFeedContent(list);
@@ -1221,130 +1289,57 @@ function renderFeedContent(list) {
     return;
   }
 
-  // ---- TRENDING: Dashboard layout ----
+  // ---- TRENDING (Rozana home): wallet nudge -> type filters -> Ending-soon -> ranked feed ----
   const active = list.filter(d => d.status !== "evergreen" && d.status !== "spotted" && !state.hiddenBrands.has(d.brand));
 
-  // Filter out news/govt deals with no real discount (Rs 0 OFF noise)
+  // Filter out news/govt headlines that carry no real discount (Rs 0 OFF noise).
   const realDeals = active.filter(d => {
     if (d.brand === "news" || brandOf(d.brand).brand_type === "news") return false;
-    const v = d.discount?.kind === "percent" ? d.discount.value : d.discount?.value || 0;
-    return v > 0;
+    return true;
   });
-  const govtDeals = active.filter(d => (d.brand.startsWith("govt") || brandOf(d.brand).brand_type === "news") && d.title.length < 80);
 
-  // Hero picks prioritize verified short-lived campaigns, then achievable offers.
-  const flashDeals = realDeals.filter(isFlashDeal).sort((a, b) => flashScore(b) - flashScore(a));
-  const anyCard = realDeals.filter(d => (d.eligibility?.payment || []).includes("any") || (d.eligibility?.payment || []).includes("visa_card") || !(d.eligibility?.payment || []).length);
-  const heroPicks = [...flashDeals, ...anyCard.filter(d => !isFlashDeal(d))].slice(0, 3);
-  const heroIds = new Set(heroPicks.map(d => d.id));
+  let html = renderWalletNudge();
+  html += typeFilterRow(active);
 
-  // Category counts
-  const catCounts = {};
-  realDeals.forEach(d => { catCounts[d.category] = (catCounts[d.category] || 0) + 1; });
-
-  let html = "";
-
-  // Hero dashboard
-  if (heroPicks.length) {
-    html += `<div class="hero-section"><div class="hero-grid">`;
-    heroPicks.forEach((d, i) => {
-      const b = brandOf(d.brand);
-      const disc = discountLabel(d.discount);
-      const merchant = d.eligibility?.merchant || b.name;
-      if (i === 0) {
-        html += `<div class="hero-card-big" data-id="${d.id}">
-          <span class="hero-badge">🔥 HOT</span>
-          ${heroLogo(d)}
-          <div class="hero-disc">${disc}</div>
-          <div class="hero-title">${esc(crispTitle(d))}</div>
-          <div class="hero-meta"><span>${esc(merchant)}</span> · <span class="pill ${countdown(d).cls}" data-countdown="${d.id}">${countdown(d).text}</span></div>
-        </div>`;
-      } else {
-        html += `<div class="hero-card-sm" data-id="${d.id}">
-          ${heroLogo(d)}
-          <div class="sm-disc">${disc}</div>
-          <div class="sm-title">${esc(crispTitle(d))}</div>
-          <div class="sm-meta">${esc(merchant)}</div>
-        </div>`;
-      }
-    });
-    html += `</div></div>`;
+  // "Ending soon" strip ONLY when the data truly supports urgency: a real,
+  // trustworthy near-term expiry (expiryState === 'soon') within 3 days AND a
+  // genuine structured discount. Never fabricated, never a decorative rail.
+  const endingSoon = realDeals
+    .filter(d => expiryState(d) === "soon" && daysUntil(d) <= 3 && (d.discount?.value || 0) > 0)
+    .sort((a, b) => msLeft(a) - msLeft(b)).slice(0, 4);
+  if (endingSoon.length) {
+    html += `<div class="section-head urgent">${ic("clock")} ${t("endingSoon")} <span class="section-count">${endingSoon.length}</span></div>`;
+    html += endingSoon.map(dealCard).join("");
   }
 
-  // Flash intelligence is P0: newly discovered and imminent campaigns appear first.
-  const justDropped = flashDeals.filter(d => hoursSince(d.first_seen_at || d.source?.captured_at) <= 24 && !heroIds.has(d.id)).slice(0, 8);
-  const endingHours = flashDeals.filter(d => expiryMs(d) > 0 && expiryMs(d) <= 48 * 36e5 && !heroIds.has(d.id) && !justDropped.includes(d)).slice(0, 8);
-  if (justDropped.length) {
-    html += `<div class="section-head urgent"><span class="section-icon">⚡</span> Just Dropped <span class="section-count">${justDropped.length}</span></div>`;
-    html += justDropped.map(dealCard).join("");
-  }
-  if (endingHours.length) {
-    html += `<div class="section-head urgent"><span class="section-icon">⏳</span> Ending in Hours <span class="section-count">${endingHours.length}</span></div>`;
-    html += endingHours.map(dealCard).join("");
-  }
+  // Primary feed: heat-ranked, merchants collapsed to avoid duplicate walls.
+  // Offers already shown in the "Ending soon" strip are not repeated below it.
+  const stripIds = new Set(endingSoon.map(d => d.id));
+  const ranked = realDeals.filter(d => !stripIds.has(d.id)).sort((a, b) => computeHeat(b) - computeHeat(a));
+  html += `<div class="section-head">${ic("trend")} ${t("tab_trending_head")} <span class="section-count">${ranked.length}</span></div>`;
+  html += renderMerchantGroups(ranked.slice(0, 80));
 
-  const flashShownIds = new Set([...justDropped, ...endingHours].map(d => d.id));
-
-  // Category tiles
-  const catIcons = {food:"🍔",shopping:"🛍️",ecommerce:"📦",retail:"🏬",fuel:"⛽",travel:"✈️",telecom:"📱",grocery:"🛒",electronics:"🔌",fashion:"👗",utilities:"💡",mobile:"📲",beauty:"💄"};
-  const topCats = Object.entries(catCounts).sort((a,b) => b[1]-a[1]).slice(0, 8);
-  if (topCats.length) {
-    html += `<div class="cat-grid">`;
-    topCats.forEach(([cat, count]) => {
-      html += `<div class="cat-tile" data-cat="${cat}">
-        <span class="cat-icon">${catIcons[cat] || "🏷️"}</span>
-        <span class="cat-label">${cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
-        <span class="cat-count">${count}</span>
-      </div>`;
-    });
-    html += `</div>`;
-  }
-
-  // Pinned brands
-  const pinned = realDeals.filter(d => state.pinnedBrands.has(d.brand) && !heroIds.has(d.id))
-    .sort((a, b) => computeHeat(b) - computeHeat(a));
-  const pinnedIds = new Set(pinned.map(d => d.id));
-  if (pinned.length) {
-    html += `<div class="section-head"><span class="section-icon">★</span> Your Pinned</div>`;
-    html += pinned.slice(0, 5).map(dealCard).join("");
-  }
-
-  // Bank Offers (grouped by merchant, collapsible)
-  const banks = realDeals.filter(d => !heroIds.has(d.id) && !flashShownIds.has(d.id) && !pinnedIds.has(d.id) && brandOf(d.brand).brand_type === "bank")
-    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 10);
-  if (banks.length) {
-    html += `<div class="section-head"><span class="section-icon">🏦</span> Bank Offers</div>`;
-    html += renderMerchantGroups(banks);
-  }
-
-  // Wallet Apps
-  const wallets = realDeals.filter(d => !heroIds.has(d.id) && !flashShownIds.has(d.id) && !pinnedIds.has(d.id) && ["easypaisa", "jazzcash", "keenu"].includes(d.brand))
-    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 6);
-  if (wallets.length) {
-    html += `<div class="section-head"><span class="section-icon">👛</span> Wallet Apps</div>`;
-    html += wallets.map(dealCard).join("");
-  }
-
-  // Brands & Stores
-  const brands = realDeals.filter(d => !heroIds.has(d.id) && !flashShownIds.has(d.id) && !pinnedIds.has(d.id) && !["easypaisa", "jazzcash", "keenu"].includes(d.brand)
-    && brandOf(d.brand).brand_type !== "bank" && !d.brand.startsWith("govt") && brandOf(d.brand).brand_type !== "news")
-    .sort((a, b) => computeHeat(b) - computeHeat(a)).slice(0, 10);
-  if (brands.length) {
-    html += `<div class="section-head"><span class="section-icon">🛍️</span> Brands & Stores</div>`;
-    html += renderMerchantGroups(brands);
-  }
-
-  // Government
-  if (govtDeals.length) {
-    html += `<div class="section-head"><span class="section-icon">🏛️</span> Government</div>`;
-    html += govtDeals.slice(0, 5).map(dealCard).join("");
-  }
-
-  $("#feed").innerHTML = html || `<div class="empty"><div style="font-size:40px;margin-bottom:12px">🔥</div>${t("emptyTrending")}</div>`;
+  $("#feed").innerHTML = html || `<div class="empty">${ic("radar")}<p>${t("emptyTrending")}</p></div>`;
   } catch (err) {
     console.error("Feed render error:", err);
-    $("#feed").innerHTML = `<div class="empty"><div style="font-size:40px;margin-bottom:12px">⚠️</div>Something went wrong loading deals.<br><button onclick="location.reload()" style="margin-top:12px;padding:10px 20px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer">Retry</button></div>`;
+    $("#feed").innerHTML = `<div class="empty">${ic("info")}<p>Something went wrong loading deals.</p><button class="btn-primary" onclick="location.reload()">Retry</button></div>`;
   }
+}
+
+// Offer-type filter row — only the types actually present in the current list.
+// Text labels + line icons, never colour alone. Hidden entirely when the feed
+// has no classified offers, so we never render a filter that does nothing.
+function typeFilterRow(pool) {
+  const counts = {};
+  pool.forEach(d => { const k = deriveOfferType(d); if (k) counts[k] = (counts[k] || 0) + 1; });
+  const present = Object.keys(OFFER_TYPES).filter(k => counts[k]);
+  if (!present.length) return "";
+  const pill = (key, label, icon) =>
+    `<button class="ot-pill${state.otype === key ? " active" : ""}" data-otype="${key}">${icon}${label}${counts[key] ? ` <span class="ot-sub">${counts[key]}</span>` : ""}</button>`;
+  return `<div class="ot-filter-row" role="group" aria-label="Filter by offer type">
+    ${pill("all", t("filterAllTypes"), ic("radar"))}
+    ${present.map(k => pill(k, t(OFFER_TYPES[k].label), ic(OFFER_TYPES[k].icon))).join("")}
+  </div>`;
 }
 
 // ---- ENDING tab: grouped by urgency bucket, countdown-first ----
@@ -1357,11 +1352,11 @@ function renderEndingTab(list) {
     { key: "tomorrow", label: "Ends Tomorrow", test: d => daysUntil(d) === 1 },
     { key: "soon", label: soonLabel, test: d => daysUntil(d) >= 2 }
   ];
-  let html = `<div class="section-head"><span class="section-icon">⏳</span> ${headLabel.replace(/[.]$/, "")} <span class="section-count">${list.length}</span></div>`;
+  let html = `<div class="section-head">${ic("clock")} ${headLabel.replace(/[.]$/, "")} <span class="section-count">${list.length}</span></div>`;
   for (const b of buckets) {
     const items = list.filter(b.test).sort((x, y) => new Date(x.valid_until) - new Date(y.valid_until)).slice(0, 20);
     if (!items.length) continue;
-    html += `<div class="section-head${b.key === "today" ? " urgent" : ""}"><span class="section-icon">${b.key === "today" ? "🚨" : b.key === "tomorrow" ? "⏰" : "⏳"}</span> ${b.label} <span class="section-count">${items.length}</span></div>`;
+    html += `<div class="section-head${b.key === "today" ? " urgent" : ""}">${ic(b.key === "today" ? "bell" : b.key === "tomorrow" ? "clock" : "calendar")} ${b.label} <span class="section-count">${items.length}</span></div>`;
     html += items.map(dealCard).join("");
   }
   return html;
@@ -1370,8 +1365,8 @@ function renderEndingTab(list) {
 // ---- FOR YOU tab: grouped by wallet/card the user selected ----
 function renderForYouTab(list) {
   if (!list.length) {
-    return `<div class="empty"><div style="font-size:40px;margin-bottom:12px">🎯</div>${state.myPay.size ? t("emptyForYouSet") : t("emptyForYou")}
-      <button class="ss-tile" id="openWalletFromEmpty" style="margin:16px auto;display:inline-block">👛 Set up my wallets</button></div>`;
+    return `<div class="empty">${ic("target")}<p>${state.myPay.size ? t("emptyForYouSet") : t("emptyForYou")}</p>
+      <button class="btn-primary" id="openWalletFromEmpty" type="button" style="margin-top:16px">${ic("wallet")}${t("walletSetup")}</button></div>`;
   }
   let html = "";
   const grouped = {};
@@ -1382,13 +1377,13 @@ function renderForYouTab(list) {
   }
   const payLabel = v => (PAY_OPTIONS.find(([k]) => k === v) || [v, v])[1];
   for (const [pay, deals] of Object.entries(grouped).sort((a, b) => b[1].length - a[1].length)) {
-    html += `<div class="section-head"><span class="section-icon">👛</span> ${esc(payLabel(pay))} <span class="section-count">${deals.length}</span></div>`;
+    html += `<div class="section-head">${ic("wallet")} ${esc(payLabel(pay))} <span class="section-count">${deals.length}</span></div>`;
     html += deals.slice(0, 15).map(dealCard).join("");
   }
   // Saved deals
   const savedDeals = list.filter(d => state.saved.has(d.id));
   if (savedDeals.length) {
-    html += `<div class="section-head"><span class="section-icon">🔖</span> Your Saved <span class="section-count">${savedDeals.length}</span></div>`;
+    html += `<div class="section-head">${ic("check")} ${t("savedHead")} <span class="section-count">${savedDeals.length}</span></div>`;
     html += savedDeals.slice(0, 10).map(dealCard).join("");
   }
   return html;
@@ -1398,20 +1393,20 @@ function renderForYouTab(list) {
 function renderEvergreenTab(list) {
   const byCat = {};
   for (const d of list) (byCat[d.category] = byCat[d.category] || []).push(d);
-  const catIcons = {food:"🍔",shopping:"🛍️",ecommerce:"📦",retail:"🏬",fuel:"⛽",travel:"✈️",telecom:"📱",grocery:"🛒",electronics:"🔌",fashion:"👗",utilities:"💡",mobile:"📲",beauty:"💄"};
+  const catGlyph = { food: "food", grocery: "food", beauty: "bag", fashion: "bag", shopping: "bag", ecommerce: "bag", retail: "store", electronics: "store", utilities: "card", telecom: "card", mobile: "card", fuel: "pin", travel: "pin" };
   let html = "";
   const entries = Object.entries(byCat).sort((a, b) => b[1].length - a[1].length);
   for (const [cat, deals] of entries) {
-    html += `<div class="section-head"><span class="section-icon">${catIcons[cat] || "🏷️"}</span> ${cat.charAt(0).toUpperCase() + cat.slice(1)} <span class="section-count">${deals.length}</span></div>`;
+    html += `<div class="section-head">${ic(catGlyph[cat] || "bag")} ${cat.charAt(0).toUpperCase() + cat.slice(1)} <span class="section-count">${deals.length}</span></div>`;
     html += deals.slice(0, 12).map(dealCard).join("");
   }
-  return html || `<div class="empty"><div style="font-size:40px;margin-bottom:12px">♾️</div>${t("emptyEvergreen")}</div>`;
+  return html || `<div class="empty">${ic("infinity")}<p>${t("emptyEvergreen")}</p></div>`;
 }
 
 // ---- SPOTTED tab: community feed, votes-first ----
 function renderSpottedTab(list) {
-  if (!list.length) return `<div class="empty"><div style="font-size:40px;margin-bottom:12px">👀</div>${t("emptySpotted")}</div>`;
-  let html = `<div class="banner-info">👀 Deals spotted by the community — vote on what works.</div>`;
+  if (!list.length) return `<div class="empty">${ic("eye")}<p>${t("emptySpotted")}</p></div>`;
+  let html = `<div class="banner-info">${ic("eye")}<span>Deals spotted by the community — vote on what works.</span></div>`;
   html += list.slice(0, 40).map(dealCard).join("");
   return html;
 }
@@ -1460,7 +1455,7 @@ function renderCalendar(list) {
     return !Number.isNaN(dt.getTime());
   };
   list = (list || []).filter(hasRealDate);
-  if (!list.length) return `<div class="empty"><div style="font-size:40px;margin-bottom:12px">📅</div>No dated deadlines coming up. Browse Trending for ongoing deals.</div>`;
+  if (!list.length) return `<div class="empty">${ic("calendar")}<p>No dated deadlines coming up. Browse Trending for ongoing deals.</p></div>`;
   const dayKey = s => s;
   const groups = {};
   list.forEach(d => { (groups[dayKey(d.valid_until)] = groups[dayKey(d.valid_until)] || []).push(d); });
@@ -1499,22 +1494,22 @@ function renderBanner() {
   // like "the inventory is empty" — it says so explicitly and offers retry.
   // Only once an attempt has actually failed (liveAttempted) — never during a normal boot.
   if (liveAttempted && dataProvenance !== "live") {
-    inner = `<div class="banner-card" style="border-color:var(--warn);color:var(--warn)">⚠️ ${t("fallbackBanner")} <button class="banner-retry" id="retryLive" type="button">${t("retry")}</button></div>`;
+    inner = `<div class="banner-card warn">${ic("info")}<span>${t("fallbackBanner")}</span> <button class="banner-retry" id="retryLive" type="button">${t("retry")}</button></div>`;
   }
   // Stale data warning (live feed itself has gone stale)
   if (!inner && DATA.meta?.generated_at) {
     const ageH = (NOW - new Date(DATA.meta.generated_at)) / 36e5;
     if (ageH > 12) {
-      inner = `<div class="banner-card" style="border-color:var(--warn);color:var(--warn)">⚠️ Data is ${Math.round(ageH)}h old — deals may have changed. Pull to refresh or check back later.</div>`;
+      inner = `<div class="banner-card warn">${ic("info")}<span>Data is ${Math.round(ageH)}h old — deals may have changed. Pull to refresh or check back later.</span></div>`;
     }
   }
   if (!inner && (state.tab === "trending" || state.tab === "ending")) {
     const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2);
-    if (soon.length) inner = `<div class="banner-card">⏳ <b>${t("flashBanner", {n: soon.length, s: soon.length > 1 ? "s" : ""})}</b> — ${[...new Set(soon.map(s => brandOf(s.brand).name))].slice(0, 3).join(", ")}${soon.length > 3 ? " +more" : ""}</div>`;
+    if (soon.length) inner = `<div class="banner-card flash">${ic("clock")}<span><b>${t("flashBanner", {n: soon.length, s: soon.length > 1 ? "s" : ""})}</b> — ${[...new Set(soon.map(s => brandOf(s.brand).name))].slice(0, 3).join(", ")}${soon.length > 3 ? " +more" : ""}</span></div>`;
   }
   if (!inner) {
     const hint = (state.tab === "ending") ? t(endingMode() === "3d" ? "ending3d" : "endingWeek") : tabInfo.hint;
-    inner = `<div class="banner-info">${hint}</div>`;
+    inner = `<div class="banner-info">${ic("info")}<span>${hint}</span></div>`;
   }
   $("#banner").innerHTML = inner;
   const live = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d)).length;
@@ -1574,7 +1569,10 @@ function startTicking() {
       const d = DATA.deals.find(x => x.id === id);
       if (!d || d.status === "evergreen") return;
       const cd = countdown(d);
-      el.textContent = cd.text;
+      // Phase 2B: the pill contains an icon + inner .pill-tx span. Rewrite only the
+      // text so the glyph survives the 60s tick.
+      const tx = el.querySelector(".pill-tx");
+      if (tx) tx.textContent = cd.text; else el.textContent = cd.text;
       el.className = `pill ${cd.cls}`;
     });
     const fp = statusFingerprint();
@@ -2974,125 +2972,27 @@ function openNotifications() {
   }));
 }
 
-// ---- onboarding (pro redesign) ----
-// ---- urgency popup: the most time-critical useful deal right now (per app open) ----
-const shownUrgencyIds = new Set();
-function showDailyDealPopup() {
-  if (!state.onboarded) return; // onboarding is showing
-  // Pick the deal with the smallest positive time-left — real urgency, not a random daily pick.
-  const pool = DATA.deals.filter(d => {
-    const left = expiryMs(d);
-    return d.status !== "evergreen" && !isHidden(d) && left > 0 && left <= 24 * 36e5 &&
-      (d.discount?.value || 0) > 0 && !String(d.brand || "").startsWith("news") &&
-      !shownUrgencyIds.has(d.id);
-  });
-  if (!pool.length) return;
-  pool.sort((a, b) => expiryMs(a) - expiryMs(b));
-  const d = pool[0];
-  const left = expiryMs(d);
-  const mins = Math.round(left / 6e4);
-  let urgency;
-  if (mins < 60) urgency = `Ends in ${Math.max(1, mins)} minutes`;
-  else if (mins < 360) urgency = `Ends in ${Math.round(mins / 60)} hours`;
-  else urgency = "Ends tonight";
-  const b = brandOf(d.brand);
-  const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  const logo = d.merchant_info?.logo || b.logo;
-  const overlay = document.createElement("div");
-  overlay.className = "daily-popup-overlay";
-  overlay.innerHTML = `
-    <div class="daily-popup">
-      <button class="daily-close" aria-label="Close">✕</button>
-      <div class="daily-tag">⏰ ${urgency}</div>
-      <div class="daily-logo">${logo ? `<img src="${esc(logo)}" alt="" onerror="this.replaceWith(document.createTextNode('${initials}'))">` : initials}</div>
-      <div class="daily-disc">${discountLabel(d.discount)}</div>
-      <div class="daily-title">${esc(crispTitle(d))}</div>
-      <div class="daily-meta">${esc(b.name)} · <span class="pill ${countdown(d).cls}">${countdown(d).text}</span></div>
-      <button class="daily-cta">Grab It Now</button>
-    </div>`;
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => overlay.classList.add("show"));
-  const close = () => {
-    shownUrgencyIds.add(d.id); // don't re-show the same deal on the next open this session
-    overlay.classList.remove("show");
-    setTimeout(() => overlay.remove(), 250);
-  };
-  overlay.querySelector(".daily-close").addEventListener("click", close);
-  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
-  overlay.querySelector(".daily-cta").addEventListener("click", () => { close(); AI.learn("view", d); openDeal(d); });
-  overlay.querySelector(".daily-popup").addEventListener("click", e => {
-    if (e.target.closest(".daily-logo, .daily-title")) { close(); openDeal(d); }
-  });
+// ---- wallet setup: compact, dismissible in-feed nudge ----
+// Replaces the old full-screen onboarding, which BLOCKED discovery on first
+// open, and the boot-time urgency popup. The nudge never covers the feed and
+// disappears permanently once the user configures a wallet or dismisses it.
+function renderWalletNudge() {
+  if (state.myPay.size || state.walletNudgeDismissed) return "";
+  return `<div class="wallet-nudge" role="note">
+    ${ic("wallet")}
+    <p class="wn-tx">${t("nudgeText")}</p>
+    <div class="wn-actions">
+      <button class="wn-set" id="nudgeSetup" type="button">${t("nudgeSetup")}</button>
+      <button class="wn-x" id="nudgeDismiss" type="button" aria-label="${t("nudgeDismiss")}">${ic("x")}</button>
+    </div>
+  </div>`;
 }
 
 function showOnboarding() {
-  if (state.onboarded) return;
-  document.body.classList.add("onboarding");
-  const screens = [
-    {
-      icon: "🛰️",
-      title: t("obTitle1"),
-      desc: t("obDesc1"),
-      visual: "trending"
-    },
-    {
-      icon: "🎯",
-      title: t("obTitle2"),
-      desc: t("obDesc2"),
-      visual: "personal"
-    },
-    {
-      icon: "👥",
-      title: t("obTitle3"),
-      desc: t("obDesc3"),
-      visual: "community"
-    }
-  ];
-  let current = 0;
-
-  function renderScreen() {
-    const s = screens[current];
-    const dots = screens.map((_, i) => `<span class="ob-dot${i === current ? " active" : ""}"></span>`).join("");
-    $("#sheet").innerHTML = `
-    <div class="onboard-full">
-      <div class="ob-bg"></div>
-      <div class="ob-content">
-        <div class="ob-visual">${s.icon}</div>
-        <h2 class="ob-title">${s.title}</h2>
-        <p class="ob-desc">${s.desc}</p>
-      </div>
-      <div class="ob-footer">
-        <div class="ob-dots">${dots}</div>
-        <div class="ob-actions">
-          ${current > 0 ? `<button class="ob-skip" id="obBack">${t("back")}</button>` : `<button class="ob-skip" id="obSkip">${t("skip")}</button>`}
-          <button class="ob-next" id="obNext">${current === screens.length - 1 ? t("getStarted") : t("next")}</button>
-        </div>
-      </div>
-    </div>`;
-
-    // wire
-    const next = $("#obNext");
-    const back = $("#obBack");
-    const skip = $("#obSkip");
-    next.addEventListener("click", () => {
-      if (current < screens.length - 1) { current++; renderScreen(); }
-      else { finishOnboarding(); }
-    });
-    if (back) back.addEventListener("click", () => { current--; renderScreen(); });
-    if (skip) skip.addEventListener("click", finishOnboarding);
-  }
-
-  function finishOnboarding() {
-    state.onboarded = true;
-    store.set("dr_onboarded", "true");
-    document.body.classList.remove("onboarding");
-    closeSheet();
-    $("#walletPanel").classList.remove("hidden");
-    renderWalletPanel();
-  }
-
-  renderScreen();
-  showSheet();
+  // Intentionally a no-op gate kept for any external callers: the old blocking
+  // multi-screen onboarding is removed. Wallet selection is now an in-feed nudge.
+  state.onboarded = true;
+  store.set("dr_onboarded", "true");
 }
 
 // ---- sheet helpers ----
@@ -3175,9 +3075,11 @@ function shareDeal(d) {
 }
 
 function syncTabs() {
-  const icons = { trending: "🔥", foryou: "🎯", ending: "⏳", evergreen: "♾️", spotted: "👀", calendar: "📅" };
+  const glyph = { trending: "trend", foryou: "target", ending: "clock", evergreen: "infinity", spotted: "eye", calendar: "calendar" };
   $("#tabbar").innerHTML = Object.keys(TABS).map(k =>
-    `<button class="tab${state.tab === k ? " active" : ""}" data-tab="${k}"><span>${icons[k]}</span>${t(k)}</button>`
+    `<button class="tab${state.tab === k ? " active" : ""}" data-tab="${k}"` +
+    `${state.tab === k ? ' aria-current="page"' : ""}>${ic(glyph[k])}` +
+    `<span class="tab-lbl">${t(k)}</span></button>`
   ).join("");
   $("#fab").classList.toggle("hidden", state.tab !== "spotted");
 }
@@ -3216,18 +3118,17 @@ function wire() {
     renderSearchSuggestions(); scheduleRender(); updateBackBtn();
   });
 
-  // Category tiles on dashboard
+  // Phase 2B: offer-type filter row + wallet nudge (both live inside the feed).
   $("#feed").addEventListener("click", e => {
-    const catTile = e.target.closest(".cat-tile");
-    if (catTile) { state.cat = catTile.dataset.cat; scheduleRender(); return; }
-    const heroCard = e.target.closest(".hero-card-big, .hero-card-sm");
-    if (heroCard) {
-      const d = DATA.deals.find(x => x.id === heroCard.dataset.id);
-      if (d) { AI.learn("view", d); openDeal(d); }
+    const ot = e.target.closest("[data-otype]");
+    if (ot) { state.otype = ot.dataset.otype; scheduleRender(); return; }
+    if (e.target.closest("#nudgeSetup")) { $("#walletBtn").click(); return; }
+    if (e.target.closest("#nudgeDismiss")) {
+      state.walletNudgeDismissed = true;
+      store.set("dr_wallet_nudge_dismissed", "true");
+      scheduleRender();
       return;
     }
-  });
-  $("#feed").addEventListener("click", e => {
     if (e.target.closest("#openWalletFromEmpty")) { $("#walletBtn").click(); }
     if (e.target.closest("#endingToTrending")) {
       const tabBtn = document.querySelector('#tabbar [data-tab="trending"]');
@@ -3423,7 +3324,9 @@ async function doFetchLive(silent) {
     DATA.meta = { ...DATA.meta, ...fresh.meta };
     dataProvenance = "live";
     restoreLocalDeals(); // re-merge device-local founder/community/screenshot deals
-    await Sync.pullDeals(); // re-merge shared Supabase deals (fetchLive replaced DATA.deals)
+    // Re-merge shared Supabase deals (fetchLive replaced DATA.deals). A Supabase
+    // outage must not skip the re-render below — the live JSON already landed.
+    await Sync.pullDeals().catch(e => console.warn("Sync pull failed:", e.message));
     flushSyncQueue(); // retry any deals/votes that failed to push while offline
     lastFetch = fresh.meta?.server_time || new Date().toISOString();
     NOW = new Date(); // Device clock always determines expiration
@@ -3606,10 +3509,12 @@ function setupPWA() {
       if (sp) { setTimeout(() => sp.classList.add("gone"), 350); }
     }));
     showOnboarding();
-    setTimeout(showDailyDealPopup, 900);
+    // NOTE: the boot-time urgency popup (showDailyDealPopup) is intentionally not
+    // restored — it interrupted discovery on every cold start. Real deadlines are
+    // surfaced in-feed by the honest "Ending soon" strip instead.
   } catch (err) {
     console.error("DealRadar init error:", err);
     const sp = $("#splash"); if (sp) sp.classList.add("gone");
-    $("#feed").innerHTML = `<div class="empty"><div style="font-size:40px;margin-bottom:12px">📡</div>Something went wrong loading deals.<br><button onclick="location.reload()" style="margin-top:12px;padding:10px 20px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer">Retry</button></div>`;
+    $("#feed").innerHTML = `<div class="empty">${ic("info")}<p>Something went wrong loading deals.</p><button class="btn-primary" onclick="location.reload()">${t("retry")}</button></div>`;
   }
 })();
