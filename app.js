@@ -62,7 +62,12 @@ const SB = {
     this.accessToken = store.get("dr_sb_token", "") || null;
     this.userId = store.get("dr_sb_uid", "") || null;
   },
-  async from(table) {
+  // MUST stay synchronous: callers use the chained query-builder form
+  // `SB.from(table).select(...)` / `.insert(...)` / `.update(...)`. Declaring this
+  // `async` wrapped the builder in a Promise, so `.select` was undefined and every
+  // community push, vote and shared-deal pull failed with a TypeError. The builder's
+  // own methods are async, so chaining and `.catch()` still behave as intended.
+  from(table) {
     return {
       select: async (cols = "*", qs = "") => {
         const r = await fetch(`${SUPABASE.url}/rest/v1/${table}?select=${cols}${qs}`, { headers: this._headers({ "Accept": "application/json" }) });
