@@ -1,0 +1,10 @@
+# Machine-specific SDK path; every clone must write its own.
+local.properties
+# Gradle + AGP outputs.
+.gradle/
+build/
+app/build/
+app/release/
+# Derived WebView bundle: regenerate with `python3 android/build_asset.py`.
+# Never committed, so an APK can never be built from a stale UI by accident.
+app/src/main/assets/index.html

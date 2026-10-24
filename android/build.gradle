@@ -1,0 +1,6 @@
+// Root project: declares the Android Gradle Plugin only. All module config lives
+// in app/build.gradle (the previous copy duplicated the android{} block here,
+// which made the build fail with "Could not find method android()").
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+}

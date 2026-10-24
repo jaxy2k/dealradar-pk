@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.dealradar.pk'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.dealradar.pk"
+        minSdk 24
+        targetSdk 34
+        versionCode 10
+        versionName "9.1-debug"
+    }
+
+    buildTypes {
+        debug {
+            // Debug signing only. No production keystore, no Play upload.
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
