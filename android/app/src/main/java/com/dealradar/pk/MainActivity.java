@@ -3,9 +3,13 @@ package com.dealradar.pk;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -13,6 +17,9 @@ import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
     private WebView webView;
+    private ValueCallback<Uri[]> fileCallback;
+    private static final int FILE_CHOOSER_REQ = 1001;
+    private static final int PERM_REQ = 1002;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,10 +33,73 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         ws.setDatabaseEnabled(true);
         webView.setWebViewClient(new DealRadarWebViewClient());
+        webView.setWebChromeClient(new FileChooserChromeClient());
         webView.setBackgroundColor(0xFFF5F6F8);
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
         setContentView(webView);
         webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == FILE_CHOOSER_REQ) {
+            Uri[] results = null;
+            if (resultCode == RESULT_OK && data != null) {
+                Uri uri = data.getData();
+                if (uri != null) results = new Uri[]{uri};
+            }
+            if (fileCallback != null) {
+                fileCallback.onReceiveValue(results);
+                fileCallback = null;
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERM_REQ && fileCallback != null) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted — launch picker
+                launchPicker();
+            } else {
+                // Denied — cancel the file input
+                fileCallback.onReceiveValue(null);
+                fileCallback = null;
+            }
+        }
+    }
+
+    private void launchPicker() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        try {
+            startActivityForResult(intent, FILE_CHOOSER_REQ);
+        } catch (ActivityNotFoundException e) {
+            if (fileCallback != null) { fileCallback.onReceiveValue(null); fileCallback = null; }
+        }
+    }
+
+    private class FileChooserChromeClient extends WebChromeClient {
+        @Override
+        public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
+                FileChooserParams fileChooserParams) {
+            if (fileCallback != null) fileCallback.onReceiveValue(null);
+            fileCallback = callback;
+
+            // Check if we need runtime permission
+            String perm = Build.VERSION.SDK_INT >= 33
+                ? "android.permission.READ_MEDIA_IMAGES"
+                : "android.permission.READ_EXTERNAL_STORAGE";
+            if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{perm}, PERM_REQ);
+                return true;
+            }
+            launchPicker();
+            return true;
+        }
     }
 
     @Override
