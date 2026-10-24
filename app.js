@@ -1805,7 +1805,7 @@ function openDeal(d) {
     <h4 class="steps-title">${t("howToAvail")}</h4>
     <ol class="steps-list">${d.steps.map((s, i) => `<li><span class="step-num">${i + 1}</span>${s}</li>`).join("")}</ol>` : "";
 
-  const wa = `https://wa.me/?text=${encodeURIComponent(`🔥 ${d.title}\n${discountLabel(d.discount)}${d.discount?.cap ? " (cap Rs " + d.discount.cap + ")" : ""}\nValid till ${fmtDate(d.valid_until)}\n${d.summary}\n\nvia DealRadar PK`)}`;
+  const wa = `https://wa.me/?text=${encodeURIComponent(shareText(d))}`;
 
   const mi2 = d.merchant_info || {};
   const logoHero = mi2.logo
@@ -2019,7 +2019,7 @@ function openSubmit() {
   pushNav("submit");
   $("#sheet").innerHTML = `<div class="grab"></div>
     <h3>📸 Got a deal screenshot?</h3>
-    <p class="sheet-summary">Drop it here — I read the brand, offer, code and expiry automatically. You just confirm.</p>
+    <p class="sheet-summary">Drop it here — I'll try to read the brand, offer and expiry automatically. If auto-read isn't available, just type the details.</p>
     <div class="drop-zone ss-drop ss-hero" id="ssQuick"><div class="icon">🖼️</div><p><b>Tap to choose a screenshot</b><br><span class="ss-sub">Foodpanda, Daraz, bank offers… any deal image</span></p></div>
     <input type="file" id="ssQuickInput" accept="image/*" hidden>
     <div class="ss-or"><span>or</span></div>
@@ -2597,7 +2597,7 @@ async function aiGuessPlatform(dataUrl, ocrText) {
 const DealExtractor = {
   providers: [],
   register(p) { this.providers.push(p); },
-  async extract(imageDataUrl, timeoutMs = 20000) {
+  async extract(imageDataUrl, timeoutMs = 8000) {
     const timer = new Promise((_, rej) => setTimeout(() => rej(new Error("OCR timed out — fill manually")), timeoutMs));
     try { return await Promise.race([this._runProviders(imageDataUrl), timer]); }
     catch (e) { return { fields: {}, confidence: 0, provider: "timeout", raw: "", error: e.message }; }
@@ -2615,14 +2615,17 @@ const DealExtractor = {
 
 // Lazy-load Tesseract.js OCR from CDN (kept optional — app still works offline without it)
 let _tessLoading = null;
+let _ocrAvailable = null; // null = unknown, true/false after first attempt
 function loadTesseract() {
   if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (_ocrAvailable === false) return Promise.reject(new Error("OCR unavailable"));
   if (_tessLoading) return _tessLoading;
   _tessLoading = new Promise((res, rej) => {
+    const timeout = setTimeout(() => { _ocrAvailable = false; rej(new Error("OCR unavailable offline")); }, 4000);
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-    s.onload = () => res(window.Tesseract);
-    s.onerror = () => rej(new Error("OCR unavailable offline"));
+    s.onload = () => { clearTimeout(timeout); _ocrAvailable = true; res(window.Tesseract); };
+    s.onerror = () => { clearTimeout(timeout); _ocrAvailable = false; rej(new Error("OCR unavailable offline")); };
     document.head.appendChild(s);
   });
   return _tessLoading;
@@ -2751,6 +2754,26 @@ function openScreenshotSubmit(preDataUrl, preFile) {
       const guess = aiGuessFinal || aiGuess;
 
       prog.classList.add("hidden");
+
+      // If OCR produced nothing useful, show manual form immediately
+      const hasUsefulFields = f.brand || f.title || f.discount_value || f.code;
+      if (!hasUsefulFields && (ocrOut.provider === "none" || ocrOut.provider === "timeout")) {
+        $("#ssForm").classList.remove("hidden");
+        $("#ssWarn").innerHTML = `⚠️ Auto-read isn't available on this device. Fill the details below — takes 10 seconds.`;
+        $("#ssWarn").className = "ss-warn warn";
+        $("#ssForm").dataset.confidence = "0.3";
+        $("#ssForm").dataset.provider = "manual";
+        wireSSHint();
+        // Still show AI brand guess if available
+        const aiZone2 = $("#ssAiZone");
+        if (guess && guess.totalScore > 0.25) {
+          aiZone2.classList.remove("hidden");
+          const p2 = guess.platform;
+          aiZone2.innerHTML = `<div class="ai-guess-card"><div class="ai-guess-header"><span class="ai-match-badge">✨ Detected</span><span class="ai-confidence">${Math.round(guess.totalScore * 100)}%</span></div><div class="ai-guess-body"><div class="ai-guess-name">${p2.name}</div></div></div>`;
+          $("#ssBrand").value = p2.name;
+        }
+        return;
+      }
 
       // ---- AI Brand Confirmation Zone ----
       const aiZone = $("#ssAiZone");
@@ -3268,8 +3291,36 @@ function renderSearchSuggestions() {
   el.innerHTML = `<div class="ss-title">Trending</div><div class="ss-tiles">${sugg.map(s => `<span class="ss-tile" data-ss="${esc(s)}">${esc(s)}</span>`).join("")}</div>`;
 }
 
-function shareDeal(d) {
-  const txt = `🔥 ${d.title}\n${discountLabel(d.discount)}${d.discount?.cap ? " (cap Rs " + d.discount.cap + ")" : ""}\nValid till ${d.valid_until}\n${d.summary}\n\nvia DealRadar PK`;
+const APP_URL = "https://jaxy2k.github.io/dealradar-pk";
+
+function shareText(d) {
+  const disc = discountLabel(d.discount);
+  const cap = d.discount?.cap ? ` (cap Rs ${Number(d.discount.cap).toLocaleString()})` : "";
+  const expiry = d.valid_until ? `\n⏰ Valid till ${fmtDate(d.valid_until)}` : "";
+  return `🔥 ${d.title}\n💰 ${disc}${cap}${expiry}\n${d.summary}\n\n📲 Found on DealRadar PK\n${APP_URL}`;
+}
+
+async function shareDeal(d) {
+  const txt = shareText(d);
+  const mi = d.merchant_info || {};
+  const coverUrl = /^https:\/\//.test(mi.cover || "") ? mi.cover : null;
+
+  // Try Web Share API Level 2 with image
+  if (navigator.share && coverUrl) {
+    try {
+      const resp = await fetch(coverUrl);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        const ext = blob.type.includes("png") ? "png" : "jpg";
+        const file = new File([blob], `deal.${ext}`, { type: blob.type });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: d.title, text: txt, files: [file] });
+          return;
+        }
+      }
+    } catch (e) { /* fall through to text-only */ }
+  }
+  // Text-only share
   if (navigator.share) {
     navigator.share({ title: d.title, text: txt }).catch(() => {});
   } else {
