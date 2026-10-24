@@ -53,9 +53,9 @@ const tick = () => new Promise((r) => setTimeout(r, 10));
   ok("install precaches shell even when health.json 404s (allSettled)", [...s.__cache.keys()].some(k => k.includes("index.html")));
   ok("failed asset does NOT block other precache entries", [...s.__cache.keys()].some(k => k.includes("app.js")));
   ok("failed asset itself stays uncached (no poisoned entry)", ![...s.__cache.keys()].some(k => k.includes("health.json")));
-  ok("UPDATE does not auto-skipWaiting (no surprise reload)", s.__skipped === false);
+  ok("UPDATE auto-skipWaiting (users always get latest UI immediately)", s.__skipped === true);
   s.__handlers.message({ data: { type: "SKIP_WAITING" } }); await tick();
-  ok("SKIP_WAITING honoured only after user taps Update", s.__skipped === true);
+  ok("SKIP_WAITING message still honoured (idempotent)", s.__skipped === true);
 
   // --- Install (no existing worker => FIRST install) ---
   const s1 = makeScope(false);

@@ -1777,24 +1777,24 @@ function openDeal(d) {
   const initials = b.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const cd = countdown(d);
   const trust = merchantTrust(d.brand);
-  const srcLink = d.source?.url
-    ? `<a href="${d.source.url}" target="_blank" rel="noopener">${d.source.platform || "source"}</a>`
-    : (d.source?.status === "pending" ? "Pending verification" : (d.source?.platform || "—"));
+  const srcLink = d.source?.url && /^https?:\/\//i.test(d.source.url)
+    ? `<a href="${esc(d.source.url)}" target="_blank" rel="noopener noreferrer">${esc(d.source.platform || "source")}</a>`
+    : (d.source?.status === "pending" ? "Pending verification" : esc(d.source?.platform || "—"));
   const fmtDate = s => { if (!s) return "—"; return new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); };
   const fmtTs = s => { if (!s) return "—"; return new Date(s).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
 
   const rows = [
     ["Discount", discountLabel(d.discount) + (d.discount?.cap ? ` · cap Rs ${Number(d.discount.cap).toLocaleString()}` : "")],
-    ["Card type", d.eligibility?.card_type || "Any card"],
+    ["Card type", esc(d.eligibility?.card_type || "Any card")],
     ["Valid", `${fmtDate(d.valid_from)} → ${fmtDate(d.valid_until)} (${cd.text})`],
     ["Heat score", heat ? `🔥 ${heat}/100` : "♾️ Always-on"],
-    ["Pay with", payLabel(d.eligibility?.payment)],
-    ["Merchant", d.eligibility?.merchant === "multiple" ? "Multiple partners" : (d.eligibility?.merchant || "—")],
+    ["Pay with", esc(payLabel(d.eligibility?.payment))],
+    ["Merchant", d.eligibility?.merchant === "multiple" ? "Multiple partners" : esc(d.eligibility?.merchant || "—")],
     ["Min spend", d.eligibility?.min_spend ? "Rs " + Number(d.eligibility?.min_spend).toLocaleString() : "None"],
     ["User", d.eligibility?.user === "new" ? "New users only" : "Everyone"],
-    ["Cities", d.cities.join(", ")],
+    ["Cities", esc(d.cities.join(", "))],
     ["Status", d.verification === "verified" ? "✓ Verified" : "⚠ Unverified — confirm at merchant"],
-    ["Source", `${srcLink} · ${d.source?.type || "—"}`],
+    ["Source", `${srcLink} · ${esc(d.source?.type || "—")}`],
     ["Captured", fmtTs(d.source?.captured_at)],
     ["Community", `▲ ${d.community?.votes || 0} · 👍 ${d.community?.worked || 0} · 👎 ${d.community?.failed || 0}`],
     ["Brand trust", trust !== null ? `${trust}% worked rate across ${d.community?.worked + d.community?.failed || 0} reports` : "No reports yet"],
@@ -1803,7 +1803,7 @@ function openDeal(d) {
 
   const stepsHtml = d.steps?.length ? `
     <h4 class="steps-title">${t("howToAvail")}</h4>
-    <ol class="steps-list">${d.steps.map((s, i) => `<li><span class="step-num">${i + 1}</span>${s}</li>`).join("")}</ol>` : "";
+    <ol class="steps-list">${d.steps.map((s, i) => `<li><span class="step-num">${i + 1}</span>${esc(s)}</li>`).join("")}</ol>` : "";
 
   const wa = `https://wa.me/?text=${encodeURIComponent(shareText(d))}`;
 
@@ -1838,7 +1838,7 @@ function openDeal(d) {
     ${d.exclusions?.length ? `<h4 class="steps-title">${t("terms")}</h4><ul>${d.exclusions.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
     <div class="sheet-actions">
       <div class="verify-block">
-        <p class="backend-note">${ic("info")}Community sharing is not connected. Feedback is saved on this device only.</p>
+        <p class="backend-note">${ic("info")}${SB.enabled ? "Feedback is saved on this device and syncs when online." : "Community sharing is not connected. Feedback is saved on this device only."}</p>
         <div class="verify-head">Did this deal work? <span class="vtier vt-${verificationTier(d).cls}">${verificationTier(d).label}</span></div>
         <div class="verify-btns">
           ${VERIFY_TYPES.map(v => `<button class="vbtn v-${v.key}${myVote(d.id) === v.key ? " active" : ""}" data-verify="${v.key}">${v.label}</button>`).join("")}
@@ -1870,7 +1870,7 @@ function openDeal(d) {
       addNotification(`"${d.title}" hidden after ${d.community.reports_expired} expired reports`);
       toast(t("dealHidden")); closeSheet(); renderFeed(); return;
     }
-    toast("Saved on this device. Community sync is not connected.");
+    toast(SB.enabled ? "Saved. Syncing to community…" : "Saved on this device. Community sync is not connected.");
     closeSheet(); setTimeout(() => openDeal(d), 240); // reopen to refresh counts/tier
   }));
 

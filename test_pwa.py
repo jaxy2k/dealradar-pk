@@ -58,8 +58,8 @@ check("no cache-first pattern (caches.match before fetch in respondWith)",
 
 # 5. update flow: waiting worker + SKIP_WAITING handshake + reload-once guard
 check("SW listens for SKIP_WAITING message", "SKIP_WAITING" in sw)
-check("skipWaiting only for first install or user tap",
-      "registration.active" in sw and "e.data.type === 'SKIP_WAITING'" in sw.replace('"', "'"))
+check("SW always skipWaiting on install (immediate update)",
+      "self.skipWaiting()" in sw)
 check("app registers sw.js", re.search(r'serviceWorker\.register\("sw\.js"\)', app) is not None)
 check("app handles beforeinstallprompt", "beforeinstallprompt" in app)
 check("app prompts update via postMessage SKIP_WAITING", 'postMessage({ type: "SKIP_WAITING" })' in app)

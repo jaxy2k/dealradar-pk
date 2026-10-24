@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-10-24T17:09:08.993593+00:00",
+  "total_deals": 4093,
+  "banks": {
+    "HBL": {
+      "ok": 20,
+      "fail": 0,
+      "deals": 648
+    },
+    "UBL": {
+      "ok": 20,
+      "fail": 0,
+      "deals": 470
+    },
+    "Meezan": {
+      "ok": 20,
+      "fail": 0,
+      "deals": 467
+    },
+    "Alfalah": {
+      "ok": 20,
+      "fail": 0,
+      "deals": 440
+    },
+    "MCB": {
+      "ok": 20,
+      "fail": 0,
+      "deals": 598
+    },
+    "Askari": {
+      "ok": 20,
+      "fail": 0,
+      "deals": 740
+    },
+    "Allied": {
+      "ok": 20,
+      "fail": 0,
+      "deals": 730
+    }
+  },
+  "overall": "OK"
+}
