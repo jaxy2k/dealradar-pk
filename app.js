@@ -3296,7 +3296,8 @@ const APP_URL = "https://jaxy2k.github.io/dealradar-pk";
 function shareText(d) {
   const disc = discountLabel(d.discount);
   const cap = d.discount?.cap ? ` (cap Rs ${Number(d.discount.cap).toLocaleString()})` : "";
-  const expiry = d.valid_until ? `\n⏰ Valid till ${fmtDate(d.valid_until)}` : "";
+  const fmtD = s => s ? new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
+  const expiry = d.valid_until ? `\n⏰ Valid till ${fmtD(d.valid_until)}` : "";
   return `🔥 ${d.title}\n💰 ${disc}${cap}${expiry}\n${d.summary}\n\n📲 Found on DealRadar PK\n${APP_URL}`;
 }
 
