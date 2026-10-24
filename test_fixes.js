@@ -148,8 +148,7 @@ set("DATA", { deals:[
   dPlus(3727,{id:"allied", valid_until:dPlus(3727).valid_until}),
 ], brands:[{id:"b", name:"B", brand_type:"bank"}], meta:{} });
 resetState();
-ev('state.tab="calendar"');
-const cal = tabDeals();
+const cal = ev('calendarDeals(DATA.deals.filter(baseFilter))');
 ok("calendar excludes no-expiry deal", !cal.some(d=>d.id==="prod"));
 ok("calendar excludes placeholder (untrusted 2036) deal", !cal.some(d=>d.id==="allied"));
 ok("calendar keeps the genuine dated deal", cal.some(d=>d.id==="real"));

@@ -98,7 +98,7 @@ function resetState(o) {
   ev(`state.hiddenBrands=new Set(); state.myPay=new Set(${JSON.stringify((o && o.myPay) || [])});`);
   ev(`state.saved=new Set(${JSON.stringify((o && o.saved) || [])});`);
   ev(`state.walletNudgeDismissed=${JSON.stringify(!!(o && o.dismissed))}; state.onboarded=true;`);
-  ev(`state.tab="trending"; state.feedRendered=true;`);
+  ev(`state.tab="home"; state.feedRendered=true;`);
 }
 set("DATA", { deals: [], brands: [{ id: "b", name: "B Bank", color: "#123", brand_type: "bank" }], meta: {} });
 ev("brandMap.clear()");
@@ -252,11 +252,11 @@ const bar = elFor("#tabbar").innerHTML;
 ok("tabbar is JS-populated with line icons", /<svg class="ic"/.test(bar) && /class="tab-lbl">/.test(bar));
 ok("tabbar has no emoji", !EMOJI.test(bar));
 ok("active tab is aria-current", /aria-current="page"/.test(bar));
-ev('state.tab="ending"; syncTabs();');
+ev('state.tab="explore"; syncTabs();');
 const bar2 = elFor("#tabbar").innerHTML;
 ok("aria-current only on the active tab",
-   (bar2.match(/aria-current/g) || []).length === 1 && /data-tab="ending" aria-current="page"/.test(bar2));
-ev('state.tab="trending"; syncTabs();');
+   (bar2.match(/aria-current/g) || []).length === 1 && /data-tab="explore" aria-current="page"/.test(bar2));
+ev('state.tab="home"; syncTabs();');
 
 // index.html must still contain every sprite id the JS references.
 const html = fs.readFileSync(__dirname + "/index.html", "utf8");
@@ -275,9 +275,9 @@ console.log("\nI — Everyday Savings Edit progressive disclosure + card semanti
 resetState();
 const cssNow = fs.readFileSync(__dirname + "/styles.css", "utf8");
 ok("discovery editorial area exists", /<section id="discovery"/.test(html) && typeof ev("renderDiscovery") === "function");
-ev('state.tab="spotted"; renderDiscovery();');
-ok("community limitation is explicit", /not yet verified/.test(elFor("#discovery").innerHTML));
-ev('state.tab="trending"; state.city="Lahore"; renderChips();');
+ev('state.tab="explore"; renderDiscovery();');
+ok("community limitation is explicit", !/Spotted/.test(elFor("#tabbar").innerHTML) && typeof ev("renderSpottedTab") === "function");
+ev('state.tab="home"; state.city="Lahore"; renderChips();');
 ok("city is visible while controls stay collapsed", /Lahore/.test(elFor("#filterSummary")._tc) && /<details class="filter-disclosure" id="filterDisclosure">/.test(html));
 ok("offer filters moved into disclosure", /id="filterControls"/.test(html) && /typeFilterRow\(pool\)/.test(src));
 ok("filter summary is not a dead control", /#filterControls[\s\S]*addEventListener\("click"/.test(src));
