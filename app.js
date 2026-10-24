@@ -1175,19 +1175,21 @@ function dealCard(d, opts = {}) {
   const hasValue = !!disc && (disc.kind === "free_delivery" || disc.kind === "bogo" || Number(disc.value) > 0);
   const discHtml = hasValue ? `<span class="disc">${esc(discountLabel(disc))}</span>` : "";
   const capLabel = disc?.cap ? `<span class="cap-txt">${t("capRs", { n: Number(disc.cap).toLocaleString() })}</span>` : "";
-  const cardType = d.eligibility?.card_type ? `<span class="card-type">${esc(d.eligibility.card_type)}</span>` : "";
+  const payment = d.eligibility?.card_type || (d.eligibility?.payment?.length ? payLabel(d.eligibility.payment) : "");
+  const cardType = payment ? `<span class="card-type" title="${esc(payment)}">${ic("card")}${esc(payment)}</span>` : "";
   const flashTag = d.collect_required ? "Collect Now" : d.app_only ? "App Only" : d.code ? "Code Required" : d.limited_quantity ? "Limited Quantity" : isFlashDeal(d) ? "Limited Time" : "";
   const merchant = mi.name || d.eligibility?.merchant;
   const merchantLine = merchant && merchant.toLowerCase() !== b.name.toLowerCase() ? ` · <span class="mn">${esc(merchant)}</span>` : "";
   const founderBadge = d.founder_verified ? `<span class="founder-badge" title="Founder-verified">${ic("crown")}</span>` : "";
 
-  return `<article class="deal${mine ? " match" : ""}" data-id="${d.id}">
+  return `<article class="deal${mine ? " match" : ""}" data-id="${esc(d.id)}" tabindex="0" role="button" aria-label="${esc(d.title)}" data-offer="${deriveOfferType(d) || "unknown"}">
+    ${opts.featured && /^https:\/\//.test(mi.cover || "") ? `<div class="ticket-cover"><img src="${esc(mi.cover)}" alt="${esc(merchant || b.name)}" loading="lazy" onerror="this.parentElement.remove()"></div>` : ""}
     ${logoHtml}
     <div class="deal-body">
       <div class="deal-brand">${founderBadge}<span class="bn">${esc(b.name)}</span>${merchantLine}${offerTypeChip(d)}</div>
       <h3 class="deal-title">${esc(crispTitle(d))}</h3>
+      <div class="ticket-value">${discHtml}${capLabel}</div>
       <div class="deal-sub">
-        ${discHtml}${capLabel}
         ${cardType}
         ${flashTag ? `<span class="card-type">${flashTag}</span>` : ""}
         <span class="pill ${cd.cls}" data-countdown="${d.id}">${expiryPillInner(d)}</span>
@@ -1251,6 +1253,10 @@ function renderFeed() {
   }
   cityFallbackActive = cityFallback;
   if (!list.length) {
+    if (state.q.trim() || state.cat !== "all" || state.otype !== "all") {
+      $("#feed").innerHTML = `<div class="empty">${ic("search")}<h3>${LANG === "ur" ? "کوئی آفر نہیں ملی" : "Nothing here. Yet."}</h3><p>${LANG === "ur" ? "دوسرا نام تلاش کریں یا فلٹرز ہٹائیں۔" : "Try another merchant or clear your search and offer filters."}</p><button id="clearSearch" class="btn-primary">${LANG === "ur" ? "تلاش صاف کریں" : "Clear search & filters"}</button></div>`;
+      return;
+    }
     if (state.tab === "foryou") { $("#feed").innerHTML = renderForYouTab([]); return; }
     const emptyMsgs = {
       foryou: state.myPay.size ? t("emptyForYouSet") : t("emptyForYou"),
@@ -1303,8 +1309,7 @@ function renderFeedContent(list) {
     return true;
   });
 
-  let html = renderWalletNudge();
-  html += typeFilterRow(active);
+  let html = cityFallbackBanner();
 
   // "Ending soon" strip ONLY when the data truly supports urgency: a real,
   // trustworthy near-term expiry (expiryState === 'soon') within 3 days AND a
@@ -1314,7 +1319,7 @@ function renderFeedContent(list) {
     .sort((a, b) => msLeft(a) - msLeft(b)).slice(0, 4);
   if (endingSoon.length) {
     html += `<div class="section-head urgent">${ic("clock")} ${t("endingSoon")} <span class="section-count">${endingSoon.length}</span></div>`;
-    html += endingSoon.map(dealCard).join("");
+    html += endingSoon.map((d, i) => dealCard(d, { featured: i === 0 })).join("");
   }
 
   // Primary feed: heat-ranked, merchants collapsed to avoid duplicate walls.
@@ -1322,7 +1327,9 @@ function renderFeedContent(list) {
   const stripIds = new Set(endingSoon.map(d => d.id));
   const ranked = realDeals.filter(d => !stripIds.has(d.id)).sort((a, b) => computeHeat(b) - computeHeat(a));
   html += `<div class="section-head">${ic("trend")} ${t("tab_trending_head")} <span class="section-count">${ranked.length}</span></div>`;
-  html += renderMerchantGroups(ranked.slice(0, 80));
+  html += renderMerchantGroups(ranked.slice(0, 4));
+  html += renderWalletNudge();
+  html += renderMerchantGroups(ranked.slice(4, 80));
 
   $("#feed").innerHTML = html || `<div class="empty">${ic("radar")}<p>${t("emptyTrending")}</p></div>`;
   } catch (err) {
@@ -1340,7 +1347,7 @@ function typeFilterRow(pool) {
   const present = Object.keys(OFFER_TYPES).filter(k => counts[k]);
   if (!present.length) return "";
   const pill = (key, label, icon) =>
-    `<button class="ot-pill${state.otype === key ? " active" : ""}" data-otype="${key}">${icon}${label}${counts[key] ? ` <span class="ot-sub">${counts[key]}</span>` : ""}</button>`;
+    `<button class="ot-pill${state.otype === key ? " active" : ""}" aria-pressed="${state.otype === key}" data-otype="${key}">${icon}${label}${counts[key] ? ` <span class="ot-sub">${counts[key]}</span>` : ""}</button>`;
   return `<div class="ot-filter-row" role="group" aria-label="Filter by offer type">
     ${pill("all", t("filterAllTypes"), ic("radar"))}
     ${present.map(k => pill(k, t(OFFER_TYPES[k].label), ic(OFFER_TYPES[k].icon))).join("")}
@@ -1508,14 +1515,7 @@ function renderBanner() {
       inner = `<div class="banner-card warn">${ic("info")}<span>Data is ${Math.round(ageH)}h old — deals may have changed. Pull to refresh or check back later.</span></div>`;
     }
   }
-  if (!inner && (state.tab === "trending" || state.tab === "ending")) {
-    const soon = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d) && daysUntil(d) >= 0 && daysUntil(d) <= 2);
-    if (soon.length) inner = `<div class="banner-card flash">${ic("clock")}<span><b>${t("flashBanner", {n: soon.length, s: soon.length > 1 ? "s" : ""})}</b> — ${[...new Set(soon.map(s => brandOf(s.brand).name))].slice(0, 3).join(", ")}${soon.length > 3 ? " +more" : ""}</span></div>`;
-  }
-  if (!inner) {
-    const hint = (state.tab === "ending") ? t(endingMode() === "3d" ? "ending3d" : "endingWeek") : tabInfo.hint;
-    inner = `<div class="banner-info">${ic("info")}<span>${hint}</span></div>`;
-  }
+  renderDiscovery();
   $("#banner").innerHTML = inner;
   const live = DATA.deals.filter(d => d.status !== "evergreen" && !isHidden(d) && !isNews(d)).length;
   // Freshness indicator
@@ -1529,15 +1529,40 @@ function renderBanner() {
   }
 }
 
+function renderDiscovery() {
+  const copy = LANG === "ur" ? {
+    trending: ["خرچ کم۔ زندگی بھرپور۔", "اپنے شہر، کارڈ اور پسند کے مطابق آفرز تلاش کریں۔"],
+    foryou: ["آپ کا کارڈ۔ آپ کی آفرز۔", "منتخب طریقۂ ادائیگی کے مطابق — مکمل شرائط ضرور دیکھیں۔"],
+    ending: ["وقت پر نظر رکھیں۔", "صرف تصدیق شدہ تاریخ والی آفرز۔"],
+    evergreen: ["روزمرہ کی بچت۔", "مستقل آفرز — خریداری سے پہلے شرائط دیکھیں۔"],
+    spotted: ["کیا آپ نے کوئی ڈیل دیکھی؟", "کمیونٹی سنک دستیاب نہیں۔ شیئرنگ اور ووٹنگ کی تصدیق باقی ہے۔"],
+    calendar: ["بچت کا کیلنڈر۔", "معلوم آخری تاریخیں، ایک جگہ۔"]
+  } : {
+    trending: ["Good finds. Less spend.", "Discover offers for your city, your cards, your everyday."],
+    foryou: ["Your cards. More possibilities.", "Matched payment methods, not guaranteed eligibility. Check the terms."],
+    ending: ["Catch it before it goes.", "Real deadlines only. No manufactured countdowns."],
+    evergreen: ["Everyday, for less.", "Standing offers worth keeping on your radar. Confirm terms before paying."],
+    spotted: ["Found something good?", "Community sync is unavailable. Shared submissions and votes are not yet verified."],
+    calendar: ["Plan a little. Save a little.", "Known offer deadlines, all in one place."]
+  };
+  const [title, sub] = copy[state.tab] || copy.trending;
+  $("#discovery").innerHTML = `<div class="edition">${ic("radar")} ${LANG === "ur" ? "پاکستان کا ڈیل ریڈار" : "THE EVERYDAY SAVINGS EDIT"}</div><h2>${title}</h2><p>${sub}</p>`;
+}
+
 function renderChips() {
-  $("#cityChips").innerHTML = CITIES.map(c => `<button class="chip${state.city === c ? " active" : ""}" data-city="${c}">${c === "All" ? t("allCities") : c}</button>`).join("");
+  $("#filterSummary").textContent = `${state.city === "All" ? t("allCities") : state.city} · ${LANG === "ur" ? "فلٹرز" : "Filters"}${state.otype !== "all" || state.cat !== "all" ? " •" : ""}`;
+  $("#cityChips").innerHTML = CITIES.map(c => `<button class="chip${state.city === c ? " active" : ""}" aria-pressed="${state.city === c}" data-city="${c}">${c === "All" ? t("allCities") : c}</button>`).join("");
+  const pool = DATA.deals.filter(d => !isNews(d));
+  $("#filterControls").innerHTML = `<p class="filter-label">${LANG === "ur" ? "آفر کی قسم" : "Offer type"}</p>${typeFilterRow(pool)}
+    <label class="filter-label" for="categorySelect">${LANG === "ur" ? "زمرہ" : "Category"}</label><select id="categorySelect">${CATS.map(([k,l]) => `<option value="${k}" ${state.cat === k ? "selected" : ""}>${esc(catKey[k] ? t(catKey[k]) : l)}</option>`).join("")}</select>
+    <p class="filter-label">${LANG === "ur" ? "شہر" : "City"}</p><button class="filter-reset" id="resetFilters">${LANG === "ur" ? "فلٹرز ہٹائیں" : "Reset filters"}</button>`;
 }
 
 function renderWalletPanel() {
   $("#walletBtn").classList.toggle("on", state.myPay.size > 0);
-  $("#walletPanel").innerHTML = `<h4>👛 ${t("wallet", {n: state.myPay.size})}</h4>
-    <p class="hint">${t("walletHint")}</p>
-    <div class="pay-grid">${PAY_OPTIONS.map(([v, l]) => `<button class="pay-opt${state.myPay.has(v) ? " on" : ""}" data-pay="${v}">${l}</button>`).join("")}</div>`;
+  $("#walletPanel").innerHTML = `<div class="wallet-heading"><h4>${ic("wallet")} ${t("wallet", {n: state.myPay.size})}</h4><button id="walletDone" class="btn-secondary">${LANG === "ur" ? "ہو گیا" : "Done"}</button></div>
+    <p class="hint">${t("walletHint")} ${LANG === "ur" ? "صرف نام منتخب کریں۔ کارڈ نمبر یا بینک لاگ اِن درکار نہیں۔ انتخاب اسی ڈیوائس پر محفوظ ہے۔" : "Names only. No card numbers or bank login. Your selection stays on this device; exact card tiers still matter."}</p>
+    <div class="pay-grid">${PAY_OPTIONS.map(([v, l]) => `<button class="pay-opt${state.myPay.has(v) ? " on" : ""}" aria-pressed="${state.myPay.has(v)}" data-pay="${v}">${l}</button>`).join("")}</div>`;
 }
 
 function renderBell() {
@@ -1651,11 +1676,13 @@ function openDeal(d) {
     </div>
     <h3>${esc(d.title)}</h3>
     <p class="sheet-summary">${esc(d.summary)}</p>
+    ${d.source?.url && /^https?:\/\//i.test(d.source.url) ? `<a class="btn-primary redeem-link" href="${esc(d.source.url)}" target="_blank" rel="noopener noreferrer">Check the offer source ${ic("chev-r")}</a>` : ""}
     ${stepsHtml}
     ${allRows.map(([k, v]) => `<div class="row"><span>${k}</span><span>${v}</span></div>`).join("")}
     ${d.exclusions?.length ? `<h4 class="steps-title">${t("terms")}</h4><ul>${d.exclusions.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
     <div class="sheet-actions">
       <div class="verify-block">
+        <p class="backend-note">${ic("info")}Community sharing is not connected. Feedback is saved on this device only.</p>
         <div class="verify-head">Did this deal work? <span class="vtier vt-${verificationTier(d).cls}">${verificationTier(d).label}</span></div>
         <div class="verify-btns">
           ${VERIFY_TYPES.map(v => `<button class="vbtn v-${v.key}${myVote(d.id) === v.key ? " active" : ""}" data-verify="${v.key}">${v.label}</button>`).join("")}
@@ -1687,7 +1714,7 @@ function openDeal(d) {
       addNotification(`"${d.title}" hidden after ${d.community.reports_expired} expired reports`);
       toast(t("dealHidden")); closeSheet(); renderFeed(); return;
     }
-    toast("Thanks — feedback recorded");
+    toast("Saved on this device. Community sync is not connected.");
     closeSheet(); setTimeout(() => openDeal(d), 240); // reopen to refresh counts/tier
   }));
 
@@ -3001,8 +3028,20 @@ function showOnboarding() {
 }
 
 // ---- sheet helpers ----
-function showSheet() { $("#sheet").classList.remove("hidden"); $("#sheetBackdrop").classList.remove("hidden"); }
-function closeSheet() { $("#sheet").classList.add("hidden"); $("#sheetBackdrop").classList.add("hidden"); }
+let sheetReturnFocus = null;
+function showSheet() {
+  const sheet = $("#sheet");
+  sheet.setAttribute("role", "dialog"); sheet.setAttribute("aria-modal", "true"); sheet.setAttribute("aria-label", "DealRadar dialog");
+  sheetReturnFocus = document.activeElement;
+  if (!sheet.querySelector(".sheet-close")) sheet.insertAdjacentHTML("afterbegin", `<button class="sheet-close" id="sheetClose" aria-label="Close">${ic("x")}</button>`);
+  $("#sheetClose").onclick = closeSheet;
+  sheet.classList.remove("hidden"); $("#sheetBackdrop").classList.remove("hidden");
+  $("#sheetClose").focus();
+}
+function closeSheet() {
+  $("#sheet").classList.add("hidden"); $("#sheetBackdrop").classList.add("hidden");
+  if (sheetReturnFocus?.focus) sheetReturnFocus.focus(); sheetReturnFocus = null;
+}
 
 let toastT;
 function toast(msg) { const el = $("#toast"); el.textContent = msg; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 2200); }
@@ -3090,6 +3129,29 @@ function syncTabs() {
 }
 
 function wire() {
+  $("#sheet").addEventListener("keydown", e => {
+    if (e.key === "Escape") { closeSheet(); return; }
+    if (e.key !== "Tab") return;
+    const focusable = $$("#sheet button, #sheet a[href], #sheet input, #sheet select, #sheet textarea, #sheet [tabindex='0']").filter(el => el.getClientRects().length && !el.disabled);
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (!first) return;
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  $("#filterControls").addEventListener("click", e => {
+    const type = e.target.closest("[data-otype]");
+    if (type) { state.otype = type.dataset.otype; renderChips(); renderFeed(); }
+    if (e.target.closest("#resetFilters")) { state.otype = "all"; state.cat = "all"; state.city = "All"; renderChips(); renderFeed(); }
+  });
+  $("#filterControls").addEventListener("change", e => {
+    if (e.target.id === "categorySelect") { state.cat = e.target.value; renderChips(); renderFeed(); }
+  });
+  $("#feed").addEventListener("keydown", e => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches("article[data-id]")) { e.preventDefault(); e.target.click(); }
+  });
+  $("#feed").addEventListener("click", e => {
+    if (e.target.closest("#clearSearch")) { state.q = ""; state.cat = "all"; state.otype = "all"; $("#q").value = ""; renderAll(); }
+  });
   $("#backBtn").addEventListener("click", goBack);
   $("#exitStay").addEventListener("click", hideExitDialog);
   $("#exitLeave").addEventListener("click", () => {
@@ -3146,6 +3208,7 @@ function wire() {
     else { wp.classList.add("hidden"); popNav(); }
   });
   $("#walletPanel").addEventListener("click", e => {
+    if (e.target.closest("#walletDone")) { $("#walletPanel").classList.add("hidden"); $("#walletBtn").focus(); popNav(); return; }
     const b = e.target.closest("[data-pay]"); if (!b) return;
     const v = b.dataset.pay; state.myPay.has(v) ? state.myPay.delete(v) : state.myPay.add(v);
     store.set("dr_pay", JSON.stringify([...state.myPay])); renderWalletPanel(); renderFeed();
@@ -3158,7 +3221,7 @@ function wire() {
     const feed = $("#feed");
     feed.style.opacity = "0"; feed.style.transform = "translateY(8px)";
     setTimeout(() => { renderAll(); feed.style.transition = "opacity .25s ease, transform .25s ease"; feed.style.opacity = "1"; feed.style.transform = "none"; }, 120);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   });
   // Long-press FAB opens the founder flash-deal form; short tap opens normal submit
   let fabTimer = null, fabLong = false;

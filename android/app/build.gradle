@@ -10,8 +10,8 @@ android {
         applicationId "com.dealradar.pk"
         minSdk 24
         targetSdk 34
-        versionCode 10
-        versionName "9.1-debug"
+        versionCode 11
+        versionName "10.0-debug"
     }
 
     buildTypes {

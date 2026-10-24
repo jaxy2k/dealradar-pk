@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#F6F7F9">
+<meta name="theme-color" content="#15252C">
 <meta name="description" content="Never miss a discount in Pakistan. Track limited-time deals from Easypaisa, JazzCash, HBL, Daraz, Foodpanda & more.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%23ffffff'/%3E%3Cg fill='none' stroke='%230E7A4E' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M14 30a10 10 0 0 1 20 0'/%3E%3Cpath d='M9 30a15 15 0 0 1 30 0' opacity='.55'/%3E%3Cpath d='M19 30a5 5 0 0 1 10 0' opacity='.85'/%3E%3C/g%3E%3Ccircle cx='24' cy='30' r='2.6' fill='%230E7A4E'/%3E%3Cpath d='M24 30 33 19' stroke='%230E7A4E' stroke-width='2.6' stroke-linecap='round'/%3E%3Ccircle cx='33' cy='19' r='2.2' fill='%230E7A4E'/%3E%3C/svg%3E">
@@ -63,14 +63,19 @@
   <button id="langBtn" class="lang-btn" title="Switch language">اردو</button>
 </header>
 
+<section id="discovery" class="discovery" aria-label="Discover offers"></section>
 <div class="searchbar">
   <svg class="search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
-  <input id="q" type="search" placeholder="Search deals, brands, cities…" autocomplete="off">
+  <input id="q" type="search" aria-label="Search offers" placeholder="Search deals, brands, cities…" autocomplete="off">
   <button id="walletBtn" class="wallet-btn" title="My wallets & cards" aria-label="My wallets and cards"><svg class="ic"><use href="#ic-wallet"/></svg></button>
 </div>
 <div id="searchSuggest" class="search-suggest hidden"></div>
 
-<nav class="chips scroll" id="cityChips" aria-label="City"></nav>
+<details class="filter-disclosure" id="filterDisclosure">
+  <summary id="filterSummary">Location & filters</summary>
+  <div id="filterControls"></div>
+  <nav class="chips scroll" id="cityChips" aria-label="City"></nav>
+</details>
 
 <div id="walletPanel" class="wallet-panel hidden"></div>
 <section id="banner"></section>

@@ -115,9 +115,16 @@ const server = http.createServer((req, res) => {
 
   // update flow: change sw.js bytes -> a new worker must eventually take over on SKIP_WAITING
   await page.reload({ waitUntil: "networkidle2" });
+  // This test owns its staged cache lifecycle. Use a unique cache per run so
+  // real source-cache names can advance without invalidating the fixture.
+  const initialCache = "dr-test-v1", updatedCache = "dr-test-v2";
   const swPath = path.join(sub, "sw.js");
-  const swSrc = fs.readFileSync(swPath, "utf8");
-  fs.writeFileSync(swPath, swSrc.replace("dealradar-v4", "dealradar-v5"));
+  let swSrc = fs.readFileSync(swPath, "utf8");
+  fs.writeFileSync(swPath, swSrc.replace(/const CACHE_NAME = ['"][^'"]+['"]/, `const CACHE_NAME = '${initialCache}'`));
+  await page.evaluate(async (name) => { const r = await navigator.serviceWorker.getRegistration(); await r.unregister(); for (const k of await caches.keys()) await caches.delete(k); await navigator.serviceWorker.register("sw.js"); await navigator.serviceWorker.ready; }, initialCache);
+  await page.reload({ waitUntil: "networkidle2" });
+  swSrc = fs.readFileSync(swPath, "utf8");
+  fs.writeFileSync(swPath, swSrc.replace(initialCache, updatedCache));
   const state = await page.evaluate(async () => {
     const r = await navigator.serviceWorker.getRegistration();
     await r.update();
@@ -132,12 +139,13 @@ const server = http.createServer((req, res) => {
   });
   await new Promise((r) => setTimeout(r, 1200));
   const keys = await page.evaluate(async () => await caches.keys());
-  ok("SKIP_WAITING completes update (v5 cache present, v4 purged)", keys.includes("dealradar-v5") && !keys.includes("dealradar-v4"), JSON.stringify(keys));
+  ok("SKIP_WAITING completes update (new cache present, old purged)", keys.includes(updatedCache) && !keys.includes(initialCache), JSON.stringify(keys));
   fs.writeFileSync(swPath, swSrc);
 
-  const sameOrigin404 = errors.filter((e) => e.includes(`127.0.0.1:${PORT}`) && /HTTP 404/.test(e));
+  // /api/deals is optional; its 404 triggers the documented static JSON fallback.
+  const sameOrigin404 = errors.filter((e) => e.includes(`127.0.0.1:${PORT}`) && /HTTP 404/.test(e) && !/\/api\/deals(?:\s|$)/.test(e));
   const crashes = errors.filter((e) => e.startsWith("pageerror"));
-  ok("no same-origin 404s (referenced assets all exist)", sameOrigin404.length === 0, sameOrigin404.slice(0, 3).join(" | ").slice(0, 200));
+  ok("no unexpected same-origin 404s (optional api/deals fallback excluded)", sameOrigin404.length === 0, sameOrigin404.slice(0, 3).join(" | ").slice(0, 200));
   ok("no JS page errors / crashes", crashes.length === 0, crashes.slice(0, 2).join(" | ").slice(0, 200));
 
   await browser.close();

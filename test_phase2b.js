@@ -220,7 +220,7 @@ ok("filter row lists only present types", /data-otype="WALLET_OFFER"/.test(row) 
 ok("filter row keeps an explicit all-types reset", /data-otype="all"/.test(row));
 ok("filter row count is real", />2<|>1</.test(row));
 ev('state.otype="WALLET_OFFER"');
-ok("active pill reflects state", /ot-pill active" data-otype="WALLET_OFFER"/.test(typeFilterRow([walletD, bankD])));
+ok("active pill reflects state", /ot-pill active" aria-pressed="true" data-otype="WALLET_OFFER"/.test(typeFilterRow([walletD, bankD])));
 resetState();
 
 // The 60s ticker must rewrite only the inner text so the pill icon survives.
@@ -265,10 +265,36 @@ const ids = [...html.matchAll(/<symbol id="ic-([a-z-]+)"/g)].map(m => m[1]);
 ok("every ic() name has a sprite symbol", used.every(u => ids.includes(u)));
 ok("sprite has no duplicate symbol ids", new Set(ids).size === ids.length);
 ok("index.html tabbar ships empty (JS owns it)", /<nav class="tabbar"[^>]*id="tabbar"[^>]*><\/nav>/.test(html));
-ok("meta theme-colour is the light Rozana surface", /theme-color" content="#F6F7F9"/.test(html));
+ok("meta theme-colour is the ink masthead", /theme-color" content="#15252C"/.test(html));
 const man = JSON.parse(fs.readFileSync(__dirname + "/manifest.json", "utf8"));
-ok("manifest colours match the meta theme (no dark-boot splash)",
-   man.theme_color === "#F6F7F9" && man.background_color === "#F6F7F9");
+ok("manifest colours match the meta theme",
+   man.theme_color === "#15252C" && man.background_color === "#15252C");
+
+// ------------------------------------------------------------------ I
+console.log("\nI — Everyday Savings Edit progressive disclosure + card semantics:");
+resetState();
+const cssNow = fs.readFileSync(__dirname + "/styles.css", "utf8");
+ok("discovery editorial area exists", /<section id="discovery"/.test(html) && typeof ev("renderDiscovery") === "function");
+ev('state.tab="spotted"; renderDiscovery();');
+ok("community limitation is explicit", /not yet verified/.test(elFor("#discovery").innerHTML));
+ev('state.tab="trending"; state.city="Lahore"; renderChips();');
+ok("city is visible while controls stay collapsed", /Lahore/.test(elFor("#filterSummary")._tc) && /<details class="filter-disclosure" id="filterDisclosure">/.test(html));
+ok("offer filters moved into disclosure", /id="filterControls"/.test(html) && /typeFilterRow\(pool\)/.test(src));
+ok("filter summary is not a dead control", /#filterControls[\s\S]*addEventListener\("click"/.test(src));
+ev('state.otype="WALLET_OFFER"');
+ok("type pills expose pressed state", /aria-pressed="true"/.test(typeFilterRow([walletD])));
+const semanticCard = dealCard(dPlus(5, { eligibility: { payment: ["visa"], card_type: "Very Long Specific Premium Card Name" } }));
+ok("card is keyboard-operable", /tabindex="0"/.test(semanticCard) && /role="button"/.test(semanticCard) && /aria-label="t"/.test(semanticCard));
+ok("card carries truthful offer class", /data-offer="BANK_CARD_OFFER"/.test(semanticCard));
+ok("full eligibility survives visual truncation", /title="Very Long Specific Premium Card Name"/.test(semanticCard));
+ok("benefit has a distinct ticket value row", /ticket-value/.test(semanticCard));
+ok("feature only uses a supplied HTTPS cover", dealCard(dPlus(5, { merchant_info: { cover: "https://example.com/real.jpg" } }), { featured: true }).includes("ticket-cover"));
+ok("no cover is invented for missing imagery", !dealCard(dPlus(5), { featured: true }).includes("ticket-cover"));
+ok("insecure image URL cannot become a cover", !dealCard(dPlus(5, { merchant_info: { cover: "javascript:alert(1)" } }), { featured: true }).includes("ticket-cover"));
+ok("wallet panel explains local-only setup", /No card numbers or bank login/.test(ev("renderWalletPanel()") || elFor("#walletPanel").innerHTML));
+ok("community feedback has an honest sync note", /Community sharing is not connected/.test(src) && /Saved on this device/.test(src));
+ok("reduced motion is supported", /prefers-reduced-motion:reduce/.test(cssNow));
+ok("RTL uses logical borders and text flow", /\[dir="rtl"\] \.deal\{border-radius/.test(cssNow) && /border-inline-start:3px/.test(cssNow));
 
 console.log(`\n==== ${PASS} passed, ${FAIL} failed ====`);
 process.exit(FAIL ? 1 : 0);

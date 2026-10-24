@@ -9,7 +9,7 @@
  *  - Cross-origin requests (Supabase API etc.) are NEVER intercepted — always live.
  *  - Precache uses allSettled so one missing asset can never abort SW installation.
  */
-const CACHE_NAME = 'dealradar-v4';
+const CACHE_NAME = 'dealradar-v5';
 const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.json', './icon-192.png', './icon-512.png'];
 const DATA = ['./live_deals.json', './deals.json', './health.json'];
 
