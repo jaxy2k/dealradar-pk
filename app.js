@@ -1183,7 +1183,7 @@ function dealCard(d, opts = {}) {
   const founderBadge = d.founder_verified ? `<span class="founder-badge" title="Founder-verified">${ic("crown")}</span>` : "";
 
   return `<article class="deal${mine ? " match" : ""}" data-id="${esc(d.id)}" tabindex="0" role="button" aria-label="${esc(d.title)}" data-offer="${deriveOfferType(d) || "unknown"}">
-    ${opts.featured && /^https:\/\//.test(mi.cover || "") ? `<div class="ticket-cover"><img src="${esc(mi.cover)}" alt="${esc(merchant || b.name)}" loading="lazy" onerror="this.parentElement.remove()"></div>` : ""}
+    ${/^https:\/\//.test(mi.cover || "") ? `<div class="ticket-cover${opts.featured ? "" : " compact"}"><img src="${esc(mi.cover)}" alt="${esc(merchant || b.name)}" loading="lazy" onerror="this.parentElement.remove()"></div>` : ""}
     ${logoHtml}
     <div class="deal-body">
       <div class="deal-brand">${founderBadge}<span class="bn">${esc(b.name)}</span>${merchantLine}${offerTypeChip(d)}</div>
@@ -1381,9 +1381,9 @@ function renderExploreTab(list) {
     </button>
   </div>`;
 
-  // Categories from real data
+  // Categories from full dataset (not affected by active filters)
   const cats = {};
-  list.filter(d => !isNews(d) && d.status !== "spotted").forEach(d => {
+  DATA.deals.filter(d => !isNews(d) && d.status !== "spotted" && !isHidden(d)).forEach(d => {
     const c = d.category || "other";
     cats[c] = (cats[c] || 0) + 1;
   });
@@ -1431,15 +1431,24 @@ function renderSavedTab(list) {
   return html;
 }
 
-// ---- CARDS tab: payment setup + matched offers ----
+// ---- CARDS tab: searchable payment setup + matched offers ----
 function renderCardsTab(list) {
   let html = "";
 
-  // Payment method setup — inline, not a panel
+  // Searchable payment method setup
   html += `<div class="cards-setup">
     <div class="cards-setup-head">${ic("wallet")} <strong>${t("walletSetup")}</strong></div>
-    <p class="hint">${t("walletHint")} ${LANG === "ur" ? "صرف نام منتخب کریں۔ کارڈ نمبر یا بینک لاگ اِن درکار نہیں۔ انتخاب اسی ڈیوائس پر محفوظ ہے۔" : "Names only. No card numbers or bank login. Your selection stays on this device; exact card tiers still matter."}</p>
-    <div class="pay-grid">${PAY_OPTIONS.map(([v, l]) => `<button class="pay-opt${state.myPay.has(v) ? " on" : ""}" aria-pressed="${state.myPay.has(v)}" data-pay="${v}">${l}</button>`).join("")}</div>
+    <p class="hint">${LANG === "ur" ? "صرف نام منتخب کریں۔ کارڈ نمبر یا بینک لاگ اِن درکار نہیں۔ انتخاب اسی ڈیوائس پر محفوظ ہے۔" : "Names only. No card numbers or bank login. Stays on this device."}</p>
+    <div class="card-search-wrap">
+      <svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg>
+      <input type="search" id="cardSearch" class="card-search" placeholder="${LANG === "ur" ? "کارڈ یا والٹ تلاش کریں…" : "Search cards & wallets…"}" aria-label="Search payment methods" autocomplete="off">
+    </div>
+    <div class="card-results" id="cardResults"></div>
+    ${state.myPay.size ? `<div class="card-selected"><div class="section-head" style="margin:12px 0 6px">${ic("check")} ${LANG === "ur" ? "منتخب" : "Selected"} <span class="section-count">${state.myPay.size}</span></div>
+      <div class="card-chips">${[...state.myPay].map(v => {
+        const label = (PAY_OPTIONS.find(([k]) => k === v) || [v, v])[1];
+        return `<span class="card-chip on" data-pay="${esc(v)}">${esc(label)} <button class="chip-x" data-pay="${esc(v)}" aria-label="Remove ${esc(label)}">&times;</button></span>`;
+      }).join("")}</div></div>` : ""}
   </div>`;
 
   // Matched offers
@@ -1448,11 +1457,45 @@ function renderCardsTab(list) {
     html += list.slice(0, 30).map(dealCard).join("");
   } else if (state.myPay.size) {
     html += `<div class="empty">${ic("target")}<p>${t("emptyForYouSet")}</p></div>`;
-  } else {
-    html += `<div class="empty">${ic("wallet")}<p>${t("emptyForYou")}</p></div>`;
   }
 
   return html;
+}
+
+// Fuzzy match for card search — Levenshtein distance <= 2 or substring match
+function fuzzyMatch(query, label) {
+  const q = query.toLowerCase().trim();
+  const l = label.toLowerCase();
+  if (!q) return true;
+  if (l.includes(q)) return true;
+  // Simple Levenshtein for typo tolerance
+  if (Math.abs(q.length - l.length) > 3) return false;
+  const dp = Array.from({length: q.length + 1}, (_, i) => [i, ...Array(l.length).fill(0)]);
+  for (let j = 0; j <= l.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= q.length; i++)
+    for (let j = 1; j <= l.length; j++)
+      dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + (q[i-1] !== l[j-1] ? 1 : 0));
+  return dp[q.length][l.length] <= 2;
+}
+
+function renderCardResults(query) {
+  const el = $("#cardResults");
+  if (!el) return;
+  const matches = PAY_OPTIONS.filter(([, label]) => fuzzyMatch(query, label));
+  if (!query.trim()) {
+    el.innerHTML = `<p class="card-hint">${LANG === "ur" ? "اوپر تلاش کریں یا نیچے سے منتخب کریں" : "Type to search, or pick from popular options"}</p>
+      <div class="card-quick">${PAY_OPTIONS.slice(0, 6).map(([v, l]) =>
+        `<button class="pay-opt${state.myPay.has(v) ? " on" : ""}" aria-pressed="${state.myPay.has(v)}" data-pay="${v}">${l}</button>`
+      ).join("")}</div>`;
+    return;
+  }
+  if (!matches.length) {
+    el.innerHTML = `<p class="card-hint">${LANG === "ur" ? "کوئی میچ نہیں ملا" : "No match — try a different spelling"}</p>`;
+    return;
+  }
+  el.innerHTML = matches.map(([v, l]) =>
+    `<button class="pay-opt${state.myPay.has(v) ? " on" : ""}" aria-pressed="${state.myPay.has(v)}" data-pay="${v}">${l}</button>`
+  ).join("");
 }
 
 // Offer-type filter row — only the types actually present in the current list.
@@ -1690,7 +1733,7 @@ function renderAIInsights() {}
 
 function renderSpendOptimizer() {}
 
-function renderAll() { renderBanner(); renderChips(); renderFeed(); renderBell(); syncTabs(); $("#q").placeholder = t("search"); renderSearchSuggestions(); }
+function renderAll() { renderBanner(); renderChips(); renderFeed(); renderBell(); syncTabs(); $("#q").placeholder = t("search"); renderSearchSuggestions(); if (state.tab === "cards") setTimeout(() => renderCardResults($("#cardSearch")?.value || ""), 50); }
 
 // ---- live ticking countdown ----
 let lastStatusFingerprint = "";
@@ -3351,6 +3394,45 @@ function wire() {
     const v = b.dataset.pay; state.myPay.has(v) ? state.myPay.delete(v) : state.myPay.add(v);
     store.set("dr_pay", JSON.stringify([...state.myPay])); renderWalletPanel(); renderFeed();
   });
+  // Card search input (My Cards tab)
+  $("#feed").addEventListener("input", e => {
+    if (e.target.id === "cardSearch") renderCardResults(e.target.value);
+  });
+  // Card selection + chip removal inside feed
+  $("#feed").addEventListener("click", e => {
+    const chipX = e.target.closest(".chip-x");
+    if (chipX) {
+      const v = chipX.dataset.pay;
+      state.myPay.delete(v);
+      store.set("dr_pay", JSON.stringify([...state.myPay]));
+      state.feedRendered = false; renderAll();
+      return;
+    }
+    const payBtn = e.target.closest("#cardResults [data-pay], .card-quick [data-pay]");
+    if (payBtn) {
+      const v = payBtn.dataset.pay;
+      state.myPay.has(v) ? state.myPay.delete(v) : state.myPay.add(v);
+      store.set("dr_pay", JSON.stringify([...state.myPay]));
+      state.feedRendered = false; renderAll();
+      return;
+    }
+  });
+  // Swipe-down to dismiss detail sheet
+  let sheetTouchY = 0;
+  $("#sheet").addEventListener("touchstart", e => { sheetTouchY = e.touches[0].clientY; }, {passive: true});
+  $("#sheet").addEventListener("touchmove", e => {
+    const dy = e.touches[0].clientY - sheetTouchY;
+    if (dy > 0 && $("#sheet").scrollTop <= 0) {
+      $("#sheet").style.transform = `translateY(${dy}px)`;
+      $("#sheet").style.transition = "none";
+    }
+  }, {passive: true});
+  $("#sheet").addEventListener("touchend", e => {
+    const dy = e.changedTouches[0].clientY - sheetTouchY;
+    $("#sheet").style.transition = "";
+    $("#sheet").style.transform = "";
+    if (dy > 80 && $("#sheet").scrollTop <= 0) closeSheet();
+  }, {passive: true});
   $("#tabbar").addEventListener("click", e => {
     const t = e.target.closest("[data-tab]"); if (!t) return;
     state.tab = t.dataset.tab; state.feedRendered = false; state.exploreView = null;
@@ -3368,6 +3450,7 @@ function wire() {
   ["pointerup", "pointerleave", "pointercancel"].forEach(ev => fab.addEventListener(ev, () => clearTimeout(fabTimer)));
   fab.addEventListener("click", () => { if (fabLong) { fabLong = false; return; } openSubmit(); });
   $("#alertBell").addEventListener("click", openNotifications);
+  $("#addDealBtn").addEventListener("click", () => openSubmit());
   $("#langBtn").addEventListener("click", () => { toggleLang(); $("#langBtn").textContent = t("langToggle"); });
 
   // AI Chat
