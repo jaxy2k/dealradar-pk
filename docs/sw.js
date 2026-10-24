@@ -9,7 +9,7 @@
  *  - Cross-origin requests (Supabase API etc.) are NEVER intercepted — always live.
  *  - Precache uses allSettled so one missing asset can never abort SW installation.
  */
-const CACHE_NAME = 'dealradar-v5';
+const CACHE_NAME = 'dealradar-v6';
 const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.json', './icon-192.png', './icon-512.png'];
 const DATA = ['./live_deals.json', './deals.json', './health.json'];
 
@@ -17,11 +17,7 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
       Promise.allSettled([...SHELL, ...DATA].map(u => cache.add(u)))
-    ).then(() => {
-      // First-ever install: take over immediately so offline works from day one.
-      // Updates: stay "waiting" until the page sends SKIP_WAITING (user tapped Update).
-      if (!self.registration.active) return self.skipWaiting();
-    })
+    ).then(() => self.skipWaiting())
   );
 });
 
