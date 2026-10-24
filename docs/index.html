@@ -3,50 +3,103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#15252C">
 <meta name="description" content="Never miss a discount in Pakistan. Track limited-time deals from Easypaisa, JazzCash, HBL, Daraz, Foodpanda & more.">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="logos/easypaisa.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%23ffffff'/%3E%3Cg fill='none' stroke='%230E7A4E' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M14 30a10 10 0 0 1 20 0'/%3E%3Cpath d='M9 30a15 15 0 0 1 30 0' opacity='.55'/%3E%3Cpath d='M19 30a5 5 0 0 1 10 0' opacity='.85'/%3E%3C/g%3E%3Ccircle cx='24' cy='30' r='2.6' fill='%230E7A4E'/%3E%3Cpath d='M24 30 33 19' stroke='%230E7A4E' stroke-width='2.6' stroke-linecap='round'/%3E%3Ccircle cx='33' cy='19' r='2.2' fill='%230E7A4E'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DealRadar">
 <title>DealRadar PK — never miss a discount</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<!-- ===== Rozana line-icon sprite (zero dependencies) =====
+     One 24x24 grid, 2px stroke, currentColor. Icons inherit the colour of
+     the element they sit in, so a single system themes with the tokens. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ic-radar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15a5 5 0 0 1 10 0"/><path d="M4.5 15a7.5 7.5 0 0 1 15 0"/><path d="M9.5 15a2.5 2.5 0 0 1 5 0"/><circle cx="12" cy="15" r="1" fill="currentColor" stroke="none"/><path d="M12 15l4.8-5.8"/><circle cx="16.8" cy="9.2" r="1.1" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+<symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 6H5a2 2 0 0 1-2-2h15a2 2 0 0 1 2 2v1h-4a3 3 0 0 0 0 6h4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6"/><circle cx="17.5" cy="10" r=".5" fill="currentColor" stroke="none"/><path d="M3 6v9a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-4"/></symbol>
+<symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h5"/></symbol>
+<symbol id="ic-chev-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></symbol>
+<symbol id="ic-chev-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+<symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/></symbol>
+<symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></symbol>
+<symbol id="ic-food" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v7a2 2 0 0 0 2 2v0 9"/><path d="M9 3v6"/><path d="M7 3v9"/><path d="M17 3c-1.7 0-3 2-3 4.5s1.3 3.5 3 3.5V21"/></symbol>
+<symbol id="ic-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l-1.5 12A1.8 1.8 0 0 0 6.3 22h11.4a1.8 1.8 0 0 0 1.8-2L18 8"/><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"/></symbol>
+<symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+<symbol id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="ic-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="ic-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></symbol>
+<symbol id="ic-infinity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12c-2.2 0-4 1.8-4 4s1.8 4 4 4c3 0 5-8 8-8 2.2 0 4 1.8 4 4s-1.8 4-4 4c-3 0-5-8-8-8z"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+<symbol id="ic-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-1.8 11H4.8L3 7z"/></symbol>
+<symbol id="ic-store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v10h16V9"/><path d="M9 19v-6h6v6"/></symbol>
+</defs></svg>
+
+<div class="splash" id="splash">
+  <div class="splash-logo"><svg viewBox="0 0 48 48" width="64" height="64" aria-hidden="true"><g fill="none" stroke="#0E7A4E" stroke-width="2.8" stroke-linecap="round"><path d="M14 30a10 10 0 0 1 20 0"/><path d="M9 30a15 15 0 0 1 30 0" opacity=".55"/><path d="M19 30a5 5 0 0 1 10 0" opacity=".85"/></g><circle cx="24" cy="30" r="2.6" fill="#0E7A4E"/><path d="M24 30 33 19" stroke="#0E7A4E" stroke-width="2.8" stroke-linecap="round"/><circle cx="33" cy="19" r="2.2" fill="#0E7A4E"/></svg></div>
+  <div class="splash-name">DealRadar<span>PK</span></div>
+  <div class="splash-sub">never miss a discount</div>
+  <div class="splash-loader"><span></span></div>
+</div>
+<div class="ptr" id="ptr"><span class="ptr-ring"></span></div>
 <header class="topbar">
-  <button id="backBtn" class="back-btn" aria-label="Go back">←</button>
+  <button id="backBtn" class="back-btn" aria-label="Go back"><svg class="ic"><use href="#ic-chev-l"/></svg></button>
   <div class="brand">
-    <span class="logo">🛰️</span>
-    <div>
-      <h1>DealRadar<span>PK</span></h1>
-      <p class="tag" id="headerTag">Trending discounts, before they expire</p>
-    </div>
+    <span class="logo"><svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true"><g fill="none" stroke="#0E7A4E" stroke-width="2.8" stroke-linecap="round"><path d="M14 30a10 10 0 0 1 20 0"/><path d="M9 30a15 15 0 0 1 30 0" opacity=".55"/><path d="M19 30a5 5 0 0 1 10 0" opacity=".85"/></g><circle cx="24" cy="30" r="2.6" fill="#0E7A4E"/><path d="M24 30 33 19" stroke="#0E7A4E" stroke-width="2.8" stroke-linecap="round"/><circle cx="33" cy="19" r="2.2" fill="#0E7A4E"/></svg></span>
+    <h1>DealRadar<span>PK</span></h1>
   </div>
-  <button id="alertBell" class="bell" title="Alerts">🔔<span id="bellCount" class="badge">0</span></button>
+  <button id="alertBell" class="bell" title="Alerts" aria-label="Alerts"><svg class="ic"><use href="#ic-bell"/></svg><span id="bellCount" class="badge">0</span></button>
+  <button id="addDealBtn" class="add-deal-btn" title="Add a deal" aria-label="Add a deal"><svg class="ic"><use href="#ic-plus"/></svg></button>
   <button id="langBtn" class="lang-btn" title="Switch language">اردو</button>
 </header>
 
+<section id="discovery" class="discovery" aria-label="Discover offers"></section>
 <div class="searchbar">
-  <input id="q" type="search" placeholder="Search deals, brands, cities…" autocomplete="off">
-  <button id="walletBtn" class="wallet-btn" title="My wallets & cards">👛</button>
+  <svg class="search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
+  <input id="q" type="search" aria-label="Search offers" placeholder="Search deals, brands, cities…" autocomplete="off">
+  <button id="walletBtn" class="wallet-btn" title="My wallets & cards" aria-label="My wallets and cards"><svg class="ic"><use href="#ic-wallet"/></svg></button>
 </div>
+<div id="searchSuggest" class="search-suggest hidden"></div>
 
-<nav class="chips scroll" id="cityChips"></nav>
-<nav class="chips scroll" id="catChips"></nav>
+<details class="filter-disclosure" id="filterDisclosure">
+  <summary id="filterSummary">Location & filters</summary>
+  <div id="filterControls"></div>
+  <nav class="chips scroll" id="cityChips" aria-label="City"></nav>
+</details>
 
 <div id="walletPanel" class="wallet-panel hidden"></div>
 <section id="banner"></section>
-<section id="savingsBar"></section>
 
 <main id="feed" class="feed" aria-live="polite"></main>
 
-<nav class="tabbar" id="tabbar">
-  <button class="tab active" data-tab="trending"><span>🔥</span>Trending</button>
-  <button class="tab" data-tab="foryou"><span>🎯</span>For You</button>
-  <button class="tab" data-tab="ending"><span>⏳</span>Ending</button>
-  <button class="tab" data-tab="evergreen"><span>♾️</span>Always On</button>
-  <button class="tab" data-tab="spotted"><span>👀</span>Spotted</button>
-</nav>
+<nav class="tabbar" id="tabbar" aria-label="Sections"></nav>
 
-<button id="fab" class="fab" title="I spotted a deal">＋</button>
+<button id="fab" class="fab" title="I spotted a deal" aria-label="Spot a deal"><svg class="ic"><use href="#ic-plus"/></svg></button>
+<button id="aiFab" class="ai-fab" title="Ask AI"><svg class="ai-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.2 6L15 19h-6l-.8-4A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/><path d="M9 22h6"/><path d="M12 2v1"/><circle cx="9.5" cy="9" r=".8" fill="currentColor"/><circle cx="14.5" cy="9" r=".8" fill="currentColor"/><path d="M10 12.5c.6.6 1.2.9 2 .9s1.4-.3 2-.9"/></svg><span class="ai-fab-label">Ask AI</span></button>
+<div class="ai-chat hidden" id="aiChat">
+  <div class="ai-chat-header">
+    <span class="ai-chat-title"><svg class="ai-chat-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.2 6L15 19h-6l-.8-4A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/><path d="M9 22h6"/><circle cx="9.5" cy="9" r=".8" fill="currentColor"/><circle cx="14.5" cy="9" r=".8" fill="currentColor"/><path d="M10 12.5c.6.6 1.2.9 2 .9s1.4-.3 2-.9"/></svg> Ask AI</span>
+    <button class="ai-chat-close" id="aiChatClose" aria-label="Close chat"><svg class="ic"><use href="#ic-x"/></svg></button>
+  </div>
+  <div class="ai-chat-body" id="aiChatBody">
+    <div class="ai-msg ai-bot">Salam! I'm your AI deal assistant. Ask me anything — "best food deals in Karachi", "what's ending soon", "which card saves most" — in English or Urdu!</div>
+  </div>
+  <div class="ai-chat-input">
+    <input id="aiInput" type="text" placeholder="Ask about deals…" autocomplete="off">
+    <button id="aiSend" aria-label="Send"><svg class="ic"><use href="#ic-send"/></svg></button>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 <div class="sheet-backdrop hidden" id="sheetBackdrop"></div>
@@ -54,7 +107,7 @@
 
 <div class="exit-overlay" id="exitOverlay">
   <div class="exit-dialog">
-    <span class="exit-icon">🛰️</span>
+    <span class="exit-icon"><svg class="ic"><use href="#ic-radar"/></svg></span>
     <h3 class="exit-title" id="exitTitle">Leaving so soon?</h3>
     <p class="exit-desc" id="exitDesc">There are still deals out there waiting for you. Come back before they expire!</p>
     <div class="exit-actions">
