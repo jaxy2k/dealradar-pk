@@ -827,6 +827,13 @@ function expiryState(d) {
   return "placeholder";
 }
 function countdown(value) {
+  // Recurring deals: show day pattern instead of countdown
+  if (value && value.valid_days && value.valid_days.length > 0) {
+    const dayNames = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+    const days = value.valid_days.map(d => dayNames[d] || d);
+    const label = days.length === 7 ? "Daily" : "Every " + days.join("–");
+    return { text: label, cls: "ongoing", ms: Infinity };
+  }
   const state = expiryState(value);
   if (state === "expired") return { text: t("expired"), cls: "red", ms: 0 };
   if (state === "ongoing") return { text: t("ongoingLabel"), cls: "ongoing", ms: Infinity };
@@ -2347,6 +2354,21 @@ function rememberDeviceBrand(profile) {
   try { store.set("dr_device_brands", JSON.stringify(list.slice(-200))); } catch (e) {}
 }
 
+// ---- Correction memory (validated provider→merchant mappings) ----
+function correctionMemory() {
+  try { return JSON.parse(store.get("dr_corrections", "[]")); } catch { return []; }
+}
+function rememberCorrection(provider, merchant, code) {
+  if (!provider || !merchant || provider === merchant) return;
+  const mem = correctionMemory().filter(c => !(c.provider === provider && c.merchant === merchant));
+  mem.push({ provider: provider.trim(), merchant: merchant.trim(), code: code || null, ts: Date.now() });
+  try { store.set("dr_corrections", JSON.stringify(mem.slice(-100))); } catch (e) {}
+}
+function getCorrectionsFor(provider) {
+  const key = normMerchant(provider);
+  return correctionMemory().filter(c => normMerchant(c.provider) === key);
+}
+
 // ---- Founder Profile (user preference memory) ----
 const FounderProfile = {
   data: JSON.parse(store.get("dr_founder_profile", "null")) || {
@@ -2710,15 +2732,33 @@ function openScreenshotSubmit(preDataUrl, preFile) {
     <div id="ssAiZone" class="hidden"></div>
     <form class="form hidden" id="ssForm">
       <div class="ss-warn" id="ssWarn"></div>
-      <label>Merchant / brand</label><input name="brand" id="ssBrand" required autocomplete="off"><div class="merchant-hint" id="ssHint"></div>
+      <label>Who's offering it? <span class="opt">(provider — bank, wallet, app)</span></label>
+      <input name="provider" id="ssProvider" required autocomplete="off" placeholder="e.g. JazzCash, HBL, Foodpanda">
+      <div class="merchant-hint" id="ssProvHint"></div>
+      <label>Where can you use it? <span class="opt">(merchant — optional if same)</span></label>
+      <input name="merchant" id="ssMerchant" autocomplete="off" placeholder="e.g. Foodpanda, KFC (leave blank if same as provider)">
+      <div class="merchant-hint" id="ssHint"></div>
       <label>Offer (title)</label><input name="title" id="ssTitle" required>
       <label>Discount</label>
       <div class="f-row">
         <select name="disc_kind" id="ssKind"><option value="percent">% off</option><option value="flat">Rs off</option><option value="bogo">Buy 1 Get 1</option><option value="cashback">Cashback</option><option value="none">None</option></select>
         <input name="disc_value" id="ssValue" type="number" min="0" placeholder="value">
       </div>
-      <label>Ends at</label><input name="expires_at" id="ssExpires" type="datetime-local">
-      <label>Promo code</label><input name="code" id="ssCode" placeholder="(optional)">
+      <label>Validity</label>
+      <div class="f-row">
+        <select name="validity_type" id="ssValidity">
+          <option value="until">Ends on date</option>
+          <option value="recurring">Recurring (specific days)</option>
+          <option value="ongoing">Ongoing / no end date</option>
+        </select>
+      </div>
+      <div id="ssUntilWrap"><input name="expires_at" id="ssExpires" type="datetime-local"></div>
+      <div id="ssDaysWrap" class="hidden">
+        <div class="day-chips" id="ssDays">
+          ${["mon","tue","wed","thu","fri","sat","sun"].map(d => `<label class="day-chip"><input type="checkbox" name="valid_day" value="${d}"><span>${d.charAt(0).toUpperCase() + d.slice(1)}</span></label>`).join("")}
+        </div>
+      </div>
+      <label>Promo code <span class="opt">(exact characters — case matters)</span></label><input name="code" id="ssCode" placeholder="(optional)" autocomplete="off" autocapitalize="characters" spellcheck="false">
       <label>Category</label><select name="category" id="ssCat">${CATS.filter(c => c[0] !== "all").map(c => `<option value="${c[0]}">${c[1]}</option>`).join("")}</select>
       <label>City</label><select name="city">${CITIES.slice(1).map(c => `<option>${c}</option>`).join("")}<option>All Pakistan</option></select>
       <button class="submit" type="submit">✓ Confirm & submit</button>
@@ -2764,13 +2804,17 @@ function openScreenshotSubmit(preDataUrl, preFile) {
         $("#ssForm").dataset.confidence = "0.3";
         $("#ssForm").dataset.provider = "manual";
         wireSSHint();
-        // Still show AI brand guess if available
+        // Show color-based guess as a tappable suggestion (NOT auto-filled — color alone is unreliable)
         const aiZone2 = $("#ssAiZone");
         if (guess && guess.totalScore > 0.25) {
           aiZone2.classList.remove("hidden");
           const p2 = guess.platform;
-          aiZone2.innerHTML = `<div class="ai-guess-card"><div class="ai-guess-header"><span class="ai-match-badge">✨ Detected</span><span class="ai-confidence">${Math.round(guess.totalScore * 100)}%</span></div><div class="ai-guess-body"><div class="ai-guess-name">${p2.name}</div></div></div>`;
-          $("#ssBrand").value = p2.name;
+          aiZone2.innerHTML = `<div class="ai-guess-card"><div class="ai-guess-header"><span class="ai-match-badge">🎨 Color hint</span><span class="ai-confidence">tap to use</span></div><div class="ai-guess-body"><div class="ai-guess-name">${p2.name}</div><div class="ai-guess-segment" style="font-size:11px;color:var(--muted)">Based on image colors only — verify before submitting</div></div></div>`;
+          aiZone2.querySelector(".ai-guess-card").addEventListener("click", () => {
+            $("#ssProvider").value = p2.name;
+            $("#ssProvider").dispatchEvent(new Event("input"));
+            aiZone2.classList.add("hidden");
+          });
         }
         return;
       }
@@ -2810,8 +2854,8 @@ function openScreenshotSubmit(preDataUrl, preFile) {
           </div>`;
         // Wire AI guess buttons
         function acceptPlatform(pl, conf) {
-          $("#ssBrand").value = pl.name;
-          $("#ssBrand").dispatchEvent(new Event("input"));
+          $("#ssProvider").value = pl.name;
+          $("#ssProvider").dispatchEvent(new Event("input"));
           $("#ssForm").dataset.aiPlatform = pl.id;
           if (conf > 0) FounderProfile.recordSubmission(pl.id, pl.segment, conf);
           aiZone.classList.add("hidden");
@@ -2839,12 +2883,12 @@ function openScreenshotSubmit(preDataUrl, preFile) {
           ).join("") + `<button class="plat-chip plat-other" data-plat="__other">Other / Not listed</button>`;
           $$("#aiPlatList .plat-chip").forEach(chip => chip.addEventListener("click", () => {
             if (chip.dataset.plat === "__other") {
-              $("#ssBrand").value = "";
-              $("#ssBrand").focus();
+              $("#ssProvider").value = "";
+              $("#ssProvider").focus();
             } else {
               const pl = PK_PLATFORMS.find(x => x.id === chip.dataset.plat);
-              $("#ssBrand").value = pl.name;
-              $("#ssBrand").dispatchEvent(new Event("input"));
+              $("#ssProvider").value = pl.name;
+              $("#ssProvider").dispatchEvent(new Event("input"));
               $("#ssForm").dataset.aiPlatform = pl.id;
               FounderProfile.recordSubmission(pl.id, pl.segment, 0.8);
             }
@@ -2875,12 +2919,12 @@ function openScreenshotSubmit(preDataUrl, preFile) {
           ).join("") + `<button class="plat-chip plat-other" data-plat="__other">Other / Not listed</button>`;
           $$("#aiPlatList .plat-chip").forEach(chip => chip.addEventListener("click", () => {
             if (chip.dataset.plat === "__other") {
-              $("#ssBrand").value = "";
-              $("#ssBrand").focus();
+              $("#ssProvider").value = "";
+              $("#ssProvider").focus();
             } else {
               const pl = PK_PLATFORMS.find(x => x.id === chip.dataset.plat);
-              $("#ssBrand").value = pl.name;
-              $("#ssBrand").dispatchEvent(new Event("input"));
+              $("#ssProvider").value = pl.name;
+              $("#ssProvider").dispatchEvent(new Event("input"));
               $("#ssForm").dataset.aiPlatform = pl.id;
               FounderProfile.recordSubmission(pl.id, pl.segment, 0.8);
             }
@@ -2905,9 +2949,9 @@ function openScreenshotSubmit(preDataUrl, preFile) {
         $("#ssExpires").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
       }
       // If OCR found a brand, pre-fill (AI guess takes priority on confirm)
-      if (f.brand && !$("#ssBrand").value) {
-        $("#ssBrand").value = f.brand;
-        $("#ssBrand").dispatchEvent(new Event("input"));
+      if (f.brand && !$("#ssProvider").value) {
+        $("#ssProvider").value = f.brand;
+        $("#ssProvider").dispatchEvent(new Event("input"));
       }
       // Warn about uncertain fields
       const c = ocrOut.conf || {};
@@ -2926,7 +2970,7 @@ function openScreenshotSubmit(preDataUrl, preFile) {
 
       function showForm() { $("#ssForm").classList.remove("hidden"); }
       // Auto-show form if brand is already filled (OCR found it)
-      if ($("#ssBrand").value) showForm();
+      if ($("#ssProvider").value) showForm();
 
     } catch (err) {
       prog.classList.add("hidden");
@@ -2940,23 +2984,43 @@ function openScreenshotSubmit(preDataUrl, preFile) {
   }
 
   function wireSSHint() {
-    const hint = $("#ssHint");
-    const upd = () => {
-      const val = $("#ssBrand").value.trim();
-      if (val.length < 2) { hint.textContent = ""; return; }
+    const provHint = $("#ssProvHint"), merchHint = $("#ssHint");
+    const resolve = (val, hintEl) => {
+      if (val.length < 2) { hintEl.textContent = ""; return; }
       const key = normMerchant(val);
       const alias = MERCHANT_ALIASES[key] || userAliases()[key];
       const m = DATA.brands.find(x => x.id === key || normMerchant(x.name) === key || (alias && (x.id === alias || normMerchant(x.name) === alias)));
-      hint.textContent = m ? `✓ Attaches to: ${m.name}` : `+ Creates merchant profile "${val}"`;
+      hintEl.textContent = m ? `✓ Attaches to: ${m.name}` : `+ Creates profile "${val}"`;
     };
-    $("#ssBrand").addEventListener("input", upd); upd();
+    $("#ssProvider").addEventListener("input", () => resolve($("#ssProvider").value.trim(), provHint));
+    $("#ssMerchant").addEventListener("input", () => resolve($("#ssMerchant").value.trim(), merchHint));
+    resolve($("#ssProvider").value.trim(), provHint);
+    // Text-based provider detection from title: if title mentions a known platform, suggest it
+    $("#ssTitle").addEventListener("input", () => {
+      const titleVal = $("#ssTitle").value.trim().toLowerCase();
+      if (titleVal.length < 3 || $("#ssProvider").value.trim().length > 1) return;
+      const textMatch = matchByText(titleVal, PK_PLATFORMS);
+      if (textMatch.length > 0 && textMatch[0].score > 0.5) {
+        const pl = textMatch[0].platform;
+        $("#ssProvider").value = pl.name;
+        $("#ssProvider").dispatchEvent(new Event("input"));
+      }
+    });
+    // Validity type toggle
+    const valSel = $("#ssValidity");
+    valSel.addEventListener("change", () => {
+      $("#ssUntilWrap").classList.toggle("hidden", valSel.value !== "until");
+      $("#ssDaysWrap").classList.toggle("hidden", valSel.value !== "recurring");
+    });
   }
 
   $("#ssForm").addEventListener("submit", e => {
     e.preventDefault();
     const f = new FormData(e.target);
     const category = f.get("category");
-    const resolution = resolveMerchant(f.get("brand") || "Community", category, e.target.dataset.aiPlatform || "");
+    const providerName = f.get("provider") || "Community";
+    const merchantName = f.get("merchant") || providerName;
+    const resolution = resolveMerchant(providerName, category, e.target.dataset.aiPlatform || "");
     const dupe = findDuplicateDeal(resolution.brandId, (function(){ const k=f.get("disc_kind"), v=f.get("disc_value"); return (k==="percent"&&v)?{kind:"percent",value:Number(v)}:(k==="flat"&&v)?{kind:"flat",value:Number(v)}:null; })(), f.get("code") || null);
     if (dupe) {
       reinforceDeal(dupe);
@@ -2973,7 +3037,14 @@ function openScreenshotSubmit(preDataUrl, preFile) {
     else if (kind === "flat" && rv) discount = { kind: "flat", value: Number(rv) };
     else if (kind === "cashback" && rv) discount = { kind: "cashback", value: Number(rv) };
     else if (kind === "bogo") discount = { kind: "bogo", value: null };
-    const expires_at = f.get("expires_at") ? new Date(f.get("expires_at") + ":00+05:00").toISOString() : null;
+
+    // Validity handling
+    const validityType = f.get("validity_type") || "until";
+    const validDays = validityType === "recurring" ? [...f.getAll("valid_day")] : null;
+    const expires_at = (validityType === "until" && f.get("expires_at")) ? new Date(f.get("expires_at") + ":00+05:00").toISOString() : null;
+    const isOngoing = validityType === "ongoing";
+    const isRecurring = validityType === "recurring" && validDays && validDays.length > 0;
+
     const id = "s" + Date.now();
     const confidence = Math.max(0.3, Math.min(0.85, parseFloat(e.target.dataset.confidence || "0.4")));
     // FounderProfile memory: learn from this submission
@@ -2982,22 +3053,28 @@ function openScreenshotSubmit(preDataUrl, preFile) {
       const pl = PK_PLATFORMS.find(x => x.id === aiPlatId);
       if (pl) FounderProfile.recordSubmission(pl.id, pl.segment, confidence);
     }
+    // Correction memory: store validated provider→merchant mappings
+    if (merchantName !== providerName) {
+      rememberCorrection(providerName, merchantName, f.get("code"));
+    }
+
     DATA.deals.push({
       id, brand: brandId, brand_brand_type: existing?.brand_type || "brand", category,
       title: "[Spotted] " + (f.get("title") || "Community screenshot deal"),
-      summary: "Submitted from a screenshot via OCR. Pending community verification.",
+      summary: `Submitted from a screenshot. Pending community verification.`,
       discount,
-      eligibility: { payment: [], merchant: f.get("brand"), user: "any", min_spend: null },
+      eligibility: { payment: [], merchant: merchantName !== providerName ? merchantName : null, user: "any", min_spend: null },
       cities: [f.get("city")],
       valid_from: NOW.toISOString().slice(0, 10),
-      valid_until: expires_at ? expires_at.slice(0, 10) : NOW.toISOString().slice(0, 10),
+      valid_until: isOngoing ? "2099-12-31" : (isRecurring ? "2099-12-31" : (expires_at ? expires_at.slice(0, 10) : NOW.toISOString().slice(0, 10))),
+      valid_days: isRecurring ? validDays : null,
       exclusions: ["Extracted from screenshot — verify before use"],
       steps: [],
       code: f.get("code") || null,
-      campaign_type: expires_at ? "flash" : "standard",
+      campaign_type: expires_at ? "flash" : (isRecurring ? "recurring" : "standard"),
       first_seen_at: NOW.toISOString(), last_seen_at: NOW.toISOString(),
       starts_at: NOW.toISOString(), expires_at,
-      merchant_info: { name: f.get("brand"), resolved_brand: resolution.matched || null, new_profile: resolution.isNew },
+      merchant_info: { name: providerName, resolved_brand: resolution.matched || null, new_profile: resolution.isNew },
       source: { type: "community", platform: "screenshot OCR", url: "", status: "pending", captured_at: NOW.toISOString(), extractor: e.target.dataset.provider, ai_platform: e.target.dataset.aiPlatform || null },
       status: "reviewing", verification: "pending", confidence,
       extraction_confidence: confidence,
@@ -3009,7 +3086,7 @@ function openScreenshotSubmit(preDataUrl, preFile) {
     Sync.pushDeal(newDeal, resolution.profile);
     if (SB.enabled) SB.from("submissions").insert([{
       deal_id: newDeal.id, extractor: e.target.dataset.provider || "manual",
-      fields: { title: newDeal.title, discount: newDeal.discount, code: newDeal.code, expires_at: newDeal.expires_at, ai_platform: e.target.dataset.aiPlatform || null },
+      fields: { title: newDeal.title, discount: newDeal.discount, code: newDeal.code, expires_at: newDeal.expires_at, valid_days: newDeal.valid_days, ai_platform: e.target.dataset.aiPlatform || null },
       confidence: newDeal.extraction_confidence ?? null, user_id: SB.userId, status: "pending"
     }]).catch(err => console.warn("submission log failed:", err.message));
     addNotification(`📸 Screenshot deal "${f.get("title") || "submitted"}" queued for verification`);
