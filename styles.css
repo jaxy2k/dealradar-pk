@@ -359,7 +359,8 @@ button{touch-action:manipulation}
 .sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:430px;
   background:var(--surface);border:1px solid var(--line);border-bottom:none;border-radius:24px 24px 0 0;
   z-index:50;max-height:88vh;overflow:auto;padding:8px 18px 32px;
-  box-shadow:0 -12px 40px rgba(0,0,0,.15);animation:sheetUp .3s cubic-bezier(.32,.72,0,1)}
+  box-shadow:0 -12px 40px rgba(0,0,0,.15);animation:sheetUp .3s cubic-bezier(.32,.72,0,1);
+  touch-action:pan-y}
 @keyframes sheetUp{from{transform:translateX(-50%) translateY(40px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
 .sheet .grab{width:36px;height:4px;background:var(--line2);border-radius:2px;margin:8px auto 16px}
 .sheet h3{margin:0 0 8px;font-size:17px;font-weight:800;line-height:1.35;letter-spacing:-.3px;color:var(--txt)}

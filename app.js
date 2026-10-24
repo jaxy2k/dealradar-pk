@@ -3192,10 +3192,13 @@ function showSheet() {
   if (!sheet.querySelector(".sheet-close")) sheet.insertAdjacentHTML("afterbegin", `<button class="sheet-close" id="sheetClose" aria-label="Close">${ic("x")}</button>`);
   $("#sheetClose").onclick = closeSheet;
   sheet.classList.remove("hidden"); $("#sheetBackdrop").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
   $("#sheetClose").focus();
 }
 function closeSheet() {
   $("#sheet").classList.add("hidden"); $("#sheetBackdrop").classList.add("hidden");
+  $("#sheet").style.transform = ""; $("#sheet").style.transition = "";
+  document.body.style.overflow = "";
   if (sheetReturnFocus?.focus) sheetReturnFocus.focus(); sheetReturnFocus = null;
 }
 
@@ -3417,16 +3420,18 @@ function wire() {
       return;
     }
   });
-  // Swipe-down to dismiss detail sheet
-  let sheetTouchY = 0;
-  $("#sheet").addEventListener("touchstart", e => { sheetTouchY = e.touches[0].clientY; }, {passive: true});
+  // Swipe-down to dismiss detail sheet (vertical only, preserves centering)
+  let sheetTouchY = 0, sheetTouchX = 0;
+  $("#sheet").addEventListener("touchstart", e => { sheetTouchY = e.touches[0].clientY; sheetTouchX = e.touches[0].clientX; }, {passive: true});
   $("#sheet").addEventListener("touchmove", e => {
     const dy = e.touches[0].clientY - sheetTouchY;
-    if (dy > 0 && $("#sheet").scrollTop <= 0) {
-      $("#sheet").style.transform = `translateY(${dy}px)`;
+    const dx = Math.abs(e.touches[0].clientX - sheetTouchX);
+    if (dy > 0 && dx < 40 && $("#sheet").scrollTop <= 0) {
+      e.preventDefault();
+      $("#sheet").style.transform = `translate(-50%, ${dy}px)`;
       $("#sheet").style.transition = "none";
     }
-  }, {passive: true});
+  }, {passive: false});
   $("#sheet").addEventListener("touchend", e => {
     const dy = e.changedTouches[0].clientY - sheetTouchY;
     $("#sheet").style.transition = "";
