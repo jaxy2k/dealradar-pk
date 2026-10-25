@@ -2594,32 +2594,106 @@ function matchByText(ocrText, platforms) {
   return results.sort((a, b) => b.score - a.score);
 }
 
-// Format inference: when no brand name or color match, infer from screenshot format
+// ---- Cautious fuzzy brand-name matching (OCR logo errors) ----
+// Script/wordmark logos are frequently mis-read ("Tim orton", "asypaisa").
+// This returns *candidate* brand matches via normalized token similarity and
+// substring tolerance. It NEVER asserts truth: callers must treat results as
+// low-confidence suggestions needing user confirmation and must reject
+// ambiguous cases. Short single-word brands are excluded so a stray common
+// word or a brand color can never masquerade as a fuzzy brand hit.
+function fuzzyMatchBrand(ocrText, platforms) {
+  const norm = s => String(s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+  const lev = (a, b) => {
+    if (a === b) return 0;
+    const m = a.length, n = b.length;
+    if (!m) return n; if (!n) return m;
+    let prev = new Array(n + 1);
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      prev = cur;
+    }
+    return prev[n];
+  };
+  const sim = (a, b) => {
+    if (a === b) return 1;
+    const m = Math.max(a.length, b.length);
+    if (!m) return 0;
+    let s = 1 - lev(a, b) / m;
+    // OCR often drops a leading/trailing char from a logo word; tolerate that.
+    if (a.length >= 5 && b.length >= 5 && (a.includes(b) || b.includes(a))) s = Math.max(s, 0.86);
+    return s;
+  };
+  const toks = norm(ocrText);
+  if (!toks.length) return [];
+  const results = [];
+  for (const p of platforms) {
+    const names = new Set([p.name, ...(p.headerText || [])]);
+    let best = 0, ev = null;
+    for (const nm of names) {
+      const bt = norm(nm);
+      if (!bt.length) continue;
+      if (bt.length >= 2) {
+        // Multi-word brand: align a same-length token window.
+        for (let i = 0; i + bt.length <= toks.length; i++) {
+          const win = toks.slice(i, i + bt.length);
+          let sum = 0, minSim = 1, longIdx = 0;
+          for (let j = 0; j < bt.length; j++) {
+            if (bt[j].length > bt[longIdx].length) longIdx = j;
+            const s = sim(bt[j], win[j]); sum += s; minSim = Math.min(minSim, s);
+          }
+          const avg = sum / bt.length, longSim = sim(bt[longIdx], win[longIdx]);
+          const score = avg * 0.6 + longSim * 0.4;
+          if (score > best && longSim >= 0.62 && avg >= 0.72 && minSim >= 0.4) {
+            best = score; ev = `phrase "${nm}" ≈ "${win.join(" ")}"`;
+          }
+        }
+      } else {
+        const b = bt[0];
+        if (b.length < 6) continue; // short single-word brand → exact match only
+        for (const t of toks) {
+          const s = sim(b, t);
+          if (s > best && s >= 0.8) { best = s; ev = `token "${b}" ≈ "${t}"`; }
+        }
+      }
+    }
+    if (best > 0) results.push({ platform: p, score: best, evidence: ev });
+  }
+  return results.sort((a, b) => b.score - a.score);
+}
+
+// Format inference: when no brand name or color match, infer from screenshot format.
+// Each clue is typed: "merchant" = where the deal is redeemed (a venue/category),
+// "payment" = the payment instrument/provider (bank card, wallet). A payment
+// instrument must NEVER be used to pick the merchant category.
 function inferFromFormat(ocrText, img) {
   const T = String(ocrText || "").toLowerCase();
   const aspect = img ? img.height / img.width : 0;
   const clues = [];
   // Voucher/coupon format: has "code", "min order", "max discount", "% off"
   if (/code|coupon|voucher|promo/i.test(T) && /min order|maximum discount|limit per day/i.test(T))
-    clues.push({ segment: "ecommerce", reason: "voucher format with min order/max discount", boost: 0.3 });
-  // Bank card offer: has "card", "debit", "credit", "% off at"
+    clues.push({ segment: "ecommerce", type: "merchant", reason: "voucher format with min order/max discount", boost: 0.3 });
+  // Bank card offer: "card"/"debit"/"credit" + discount → payment instrument, NOT merchant category
   if (/card|debit|credit/i.test(T) && /% off|discount|cashback/i.test(T))
-    clues.push({ segment: "bank", reason: "bank card offer format", boost: 0.3 });
-  // E-wallet: has "wallet", "recharge", "cashback", "send money"
+    clues.push({ segment: "bank", type: "payment", reason: "bank card payment method", boost: 0.3 });
+  // E-wallet: "wallet"/"recharge"/"send money" → payment instrument
   if (/wallet|recharge|send money|bill payment/i.test(T))
-    clues.push({ segment: "ewallet", reason: "e-wallet transaction format", boost: 0.3 });
+    clues.push({ segment: "ewallet", type: "payment", reason: "e-wallet payment method", boost: 0.3 });
   // Food delivery: has "delivery", "order", "restaurant", "min"
   if (/delivery|order now|restaurant|pick.?up/i.test(T) && aspect > 1.5)
-    clues.push({ segment: "qcommerce", reason: "food delivery app format", boost: 0.25 });
+    clues.push({ segment: "qcommerce", type: "merchant", reason: "food delivery app format", boost: 0.25 });
   // Grocery: has "grocery", "fresh", "vegetables", "fruits"
   if (/grocery|fresh|vegetables|fruits|supermarket/i.test(T))
-    clues.push({ segment: "grocery", reason: "grocery/supermarket format", boost: 0.25 });
+    clues.push({ segment: "grocery", type: "merchant", reason: "grocery/supermarket format", boost: 0.25 });
   // Telecom: has "recharge", "bundle", "mb", "gb", "data"
   if (/recharge|bundle|\d+\s*(mb|gb)|data pack/i.test(T))
-    clues.push({ segment: "telecom", reason: "telecom recharge format", boost: 0.25 });
+    clues.push({ segment: "telecom", type: "merchant", reason: "telecom recharge format", boost: 0.25 });
   // Travel: has "flight", "hotel", "booking", "ticket"
   if (/flight|hotel|booking|ticket|airline/i.test(T))
-    clues.push({ segment: "travel", reason: "travel/booking format", boost: 0.25 });
+    clues.push({ segment: "travel", type: "merchant", reason: "travel/booking format", boost: 0.25 });
   return clues;
 }
 
@@ -2638,6 +2712,15 @@ async function aiGuessPlatform(dataUrl, ocrText) {
 
     // Tier 3: Text matching — all platforms (text is explicit evidence)
     const textMatches = matchByText(ocrText, PK_PLATFORMS);
+
+    // Tier 3b: Cautious fuzzy brand-name matching (OCR logo errors).
+    // Only for platforms NOT already matched by exact brand text, and only as
+    // a *candidate*. Reject when the top two fuzzy brands are too close.
+    const exactIds = new Set(textMatches.filter(m => m.headerHit || m.discHits > 0).map(m => m.platform.id));
+    const fuzzyRaw = fuzzyMatchBrand(ocrText, pkPlatforms()).filter(m => !exactIds.has(m.platform.id));
+    const fuzzyTop = fuzzyRaw[0];
+    const fuzzyAmbiguous = !!(fuzzyTop && fuzzyRaw[1] && (fuzzyTop.score - fuzzyRaw[1].score) < 0.08);
+    const fuzzyAccept = !!(fuzzyTop && fuzzyTop.score >= 0.78 && !fuzzyAmbiguous);
 
     // Tier 4: Format inference (for vague screenshots)
     const formatClues = inferFromFormat(ocrText, img);
@@ -2658,6 +2741,9 @@ async function aiGuessPlatform(dataUrl, ocrText) {
     fullColorMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.06, "fullColor"));
     // Text is dominant (0.65) — brand name in text = near-certain
     textMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.65, "text"));
+    // Fuzzy text is a weaker text signal (0.5) — a candidate needing confirmation.
+    // Color still only *supports* it; it cannot create the match on its own.
+    if (fuzzyAccept) addScore(fuzzyTop.platform.id, fuzzyTop.score, 0.5, "fuzzy");
 
     // Apply founder profile boosts + correction memory boosts
     for (const id of Object.keys(combined)) {
@@ -2665,20 +2751,21 @@ async function aiGuessPlatform(dataUrl, ocrText) {
       const brandBoost = FounderProfile.getBrandBoost(id);
       const corrBoost = getCorrectionBoost(id);
       combined[id].total = Object.values(combined[id].scores).reduce((a, b) => a + b, 0) * segBoost * brandBoost * corrBoost;
-      // HARD INVARIANT: color-only matches (no text evidence) are capped at 0.14
-      // — below the 0.15 suggestion threshold. Color alone is never sufficient.
-      if (!combined[id].scores.text) {
+      // HARD INVARIANT: a match with NO text evidence at all (neither exact nor
+      // fuzzy) is color-only and capped at 0.14 — below the suggestion threshold.
+      // Color alone is never sufficient, so red alone can't name Tim Hortons.
+      if (!combined[id].scores.text && !combined[id].scores.fuzzy) {
         combined[id].total = Math.min(combined[id].total, 0.14);
       }
     }
 
-    // Format clues boost segments (not specific brands)
+    // Format clues boost only MERCHANT-category candidates (never payment
+    // instrument clues, and never specific brands the image didn't evidence).
     for (const clue of formatClues) {
+      if (clue.type !== "merchant") continue;
       const segPlatforms = PK_PLATFORMS.filter(p => p.segment === clue.segment);
       for (const p of segPlatforms) {
-        if (combined[p.id]) {
-          combined[p.id].total += clue.boost * 0.1; // small boost to existing candidates in that segment
-        }
+        if (combined[p.id]) combined[p.id].total += clue.boost * 0.1;
       }
     }
 
@@ -2686,7 +2773,16 @@ async function aiGuessPlatform(dataUrl, ocrText) {
       .filter(c => c.total > 0.15)
       .sort((a, b) => b.total - a.total);
 
-    if (!ranked.length) return null;
+    // Merchant/redemption category — inferred independently of payment method.
+    const MERCHANT_SEGS = ["restaurant", "qcommerce", "ecommerce", "grocery", "travel", "telecom", "health", "education"];
+    let merchantCategory = null;
+    if (ranked[0] && MERCHANT_SEGS.includes(ranked[0].platform.segment)) merchantCategory = ranked[0].platform.segment;
+    if (!merchantCategory) {
+      const mc = formatClues.find(c => c.type === "merchant" && MERCHANT_SEGS.includes(c.segment));
+      if (mc) merchantCategory = mc.segment;
+    }
+
+    if (!ranked.length) return { platform: null, merchantCategory, formatClues, fuzzy: false, ambiguous: fuzzyAmbiguous };
 
     const top = ranked[0];
     return {
@@ -2694,7 +2790,10 @@ async function aiGuessPlatform(dataUrl, ocrText) {
       totalScore: Math.min(top.total, 1),
       scores: top.scores,
       runnersUp: ranked.slice(1, 4).map(r => ({ platform: r.platform, score: r.total })),
-      formatClues
+      formatClues,
+      merchantCategory,
+      fuzzy: !!top.scores.fuzzy && !top.scores.text,
+      ambiguous: fuzzyAmbiguous,
     };
   } catch (e) {
     console.warn("aiGuessPlatform error:", e.message);
@@ -2936,6 +3035,17 @@ function parseDealText(text, ocrConfidence) {
     fields.provider_id = providerMatch[0].platform.id;
     conf.provider = baseConf * providerMatch[0].score;
     evidence.provider = `Bank/wallet name found in text: "${providerMatch[0].platform.name}" (${providerMatch[0].hits} keyword hits)`;
+  } else {
+    // Fuzzy fallback for mis-read wallet/bank logos (e.g. "asypaisa" → Easypaisa).
+    // Candidate only: require a strong, unambiguous match and low confidence.
+    const fz = fuzzyMatchBrand(T, providerPlats);
+    if (fz[0] && fz[0].score >= 0.8 && (!fz[1] || fz[0].score - fz[1].score >= 0.08)) {
+      fields.provider = fz[0].platform.name;
+      fields.provider_id = fz[0].platform.id;
+      fields.provider_fuzzy = true;
+      conf.provider = baseConf * 0.5;
+      evidence.provider = `Approximate (logo OCR): ${fz[0].evidence} — verify`;
+    }
   }
 
   // Merchant detection: food/retail/ecommerce (redemption locations)
@@ -2946,6 +3056,16 @@ function parseDealText(text, ocrConfidence) {
     fields.merchant_id = merchantMatch[0].platform.id;
     conf.merchant = baseConf * merchantMatch[0].score;
     evidence.merchant = `Merchant/platform name found: "${merchantMatch[0].platform.name}"`;
+  } else {
+    // Fuzzy fallback for mis-read brand logos (e.g. "Tim orton" → Tim Hortons).
+    const fz = fuzzyMatchBrand(T, merchantPlats);
+    if (fz[0] && fz[0].score >= 0.8 && (!fz[1] || fz[0].score - fz[1].score >= 0.08)) {
+      fields.merchant = fz[0].platform.name;
+      fields.merchant_id = fz[0].platform.id;
+      fields.merchant_fuzzy = true;
+      conf.merchant = baseConf * 0.5;
+      evidence.merchant = `Approximate (logo OCR): ${fz[0].evidence} — verify`;
+    }
   }
 
   // If only one entity found, it's the brand (provider = merchant)
@@ -3135,12 +3255,13 @@ function openScreenshotSubmit(preDataUrl, preFile) {
         aiZone.innerHTML = `
           <div class="ai-guess-card">
             <div class="ai-guess-header">
-              <span class="ai-match-badge">✨ AI Match</span>
+              <span class="ai-match-badge">${guess.fuzzy ? "≈ Approximate match" : "✨ AI Match"}</span>
               <span class="ai-confidence">${confidence}% confident</span>
             </div>
             <div class="ai-guess-body">
               <div class="ai-guess-name">${p.name}</div>
               <div class="ai-guess-segment">${segLabel}${clueText ? ` · <span class="ai-clue">${clueText}</span>` : ""}</div>
+              ${guess.fuzzy ? `<div class="ai-guess-segment" style="font-size:11px;color:var(--muted)">Logo text was hard to read — please confirm this is right.</div>` : ""}
             </div>
             ${runnersHtml ? `<div class="ai-runners"><span class="ai-runners-label">Or maybe:</span><div class="ai-platform-list">${runnersHtml}</div></div>` : ""}
             <div class="ai-guess-actions">
@@ -3175,7 +3296,9 @@ function openScreenshotSubmit(preDataUrl, preFile) {
         }));
         $("#aiNo").addEventListener("click", () => {
           $("#aiAlt").classList.remove("hidden");
-          renderPlatformList("qcommerce"); // default tab
+          const seg = guess.merchantCategory || (guess.platform && guess.platform.segment) || "qcommerce";
+          $$("#aiSegTabs .seg-tab").forEach(t => t.classList.toggle("active", t.dataset.seg === seg));
+          renderPlatformList(seg);
         });
         // Segment tabs
         $$("#aiSegTabs .seg-tab").forEach(tab => tab.addEventListener("click", () => {
@@ -3239,11 +3362,26 @@ function openScreenshotSubmit(preDataUrl, preFile) {
             showForm();
           }));
         }
-        // Default tab: use format clue segment if AI detected one
-        const defaultSeg = (guess && guess.formatClues && guess.formatClues[0] && guess.formatClues[0].segment) || "qcommerce";
-        const defTab = $(`#aiSegTabs .seg-tab[data-seg="${defaultSeg}"]`) || $("#aiSegTabs .seg-tab");
-        defTab.classList.add("active");
-        renderPlatformList(defaultSeg);
+        // Default category: only a reliably-inferred MERCHANT category (never a
+        // payment instrument like "debit card"). If none, stay neutral and let
+        // the user pick or type manually — automatic failure never blocks them.
+        const defaultSeg = (guess && guess.merchantCategory) || null;
+        if (defaultSeg) {
+          const defTab = $(`#aiSegTabs .seg-tab[data-seg="${defaultSeg}"]`);
+          if (defTab) { defTab.classList.add("active"); renderPlatformList(defaultSeg); }
+          else renderPlatformList("qcommerce");
+        } else {
+          $("#aiPlatList").innerHTML =
+            `<p class="ai-neutral-hint">Couldn't tell the category automatically. Pick one above, or add the details yourself.</p>` +
+            `<button class="plat-chip plat-manual" id="ssManualSkip">✍️ Enter details manually</button>`;
+          const skip = $("#ssManualSkip");
+          if (skip) skip.addEventListener("click", () => {
+            $("#ssProvider").value = "";
+            aiZone.classList.add("hidden");
+            showForm();
+            $("#ssProvider").focus();
+          });
+        }
       }
 
       // Pre-fill deal fields from OCR (structured, evidence-based)
@@ -3312,6 +3450,8 @@ function openScreenshotSubmit(preDataUrl, preFile) {
       if ((c.expires_at ?? 0) < 0.5 && f.expires_at) uncertain.push("end date");
       if ((c.valid_days ?? 0) < 0.5 && f.valid_days) uncertain.push("recurring days");
       if ((c.title ?? 0) < 0.4) uncertain.push("offer text");
+      if (f.provider_fuzzy) uncertain.push("provider (logo read)");
+      if (f.merchant_fuzzy) uncertain.push("merchant (logo read)");
       const warnBase = uncertain.length
         ? `⚠️ Double-check: <b>${uncertain.join(", ")}</b> — low confidence from OCR.`
         : `✅ Please verify these details are correct before submitting.`;
@@ -3319,7 +3459,7 @@ function openScreenshotSubmit(preDataUrl, preFile) {
       $("#ssWarn").className = "ss-warn " + (uncertain.length ? "warn" : "ok");
       $("#ssForm").dataset.confidence = String(ocrOut.confidence || 0.4);
       $("#ssForm").dataset.provider = ocrOut.provider || "none";
-      $("#ssForm").dataset.aiPlatform = guess ? guess.platform.id : "";
+      $("#ssForm").dataset.aiPlatform = (guess && guess.platform) ? guess.platform.id : "";
       wireSSHint();
 
       function showForm() { $("#ssForm").classList.remove("hidden"); }

@@ -37,6 +37,8 @@ const matchByColorSrc = js.match(/function matchByColor\(colors, platforms\)[\s\
 const colorDistSrc = js.match(/function colorDist\(c1, c2\)[\s\S]*?\n\}/);
 const normMerchantSrc = js.match(/function normMerchant\(s\)[\s\S]*?\n\}/);
 const genericPhrasesSrc = js.match(/const GENERIC_PHRASES = new Set\([\s\S]*?\]\);/);
+const fuzzyBrandSrc = js.match(/function fuzzyMatchBrand\(ocrText, platforms\)[\s\S]*?\n\}/);
+const inferFormatSrc = js.match(/function inferFromFormat\(ocrText, img\)[\s\S]*?\n\}/);
 
 // Extract PK_PLATFORMS array
 const pkPlatStart = js.indexOf("const PK_PLATFORMS = [");
@@ -52,11 +54,15 @@ ${funcExtract ? funcExtract[0] : ""}
 ${colorDistSrc ? colorDistSrc[0] : ""}
 ${matchByColorSrc ? matchByColorSrc[0] : ""}
 ${matchByTextSrc ? matchByTextSrc[0] : ""}
+${fuzzyBrandSrc ? fuzzyBrandSrc[0] : ""}
+${inferFormatSrc ? inferFormatSrc[0] : ""}
 ${parseDealTextSrc ? parseDealTextSrc[0] : ""}
 this.PK_PLATFORMS = PK_PLATFORMS;
 this.pkPlatforms = pkPlatforms;
 this.matchByColor = typeof matchByColor !== "undefined" ? matchByColor : undefined;
 this.matchByText = typeof matchByText !== "undefined" ? matchByText : undefined;
+this.fuzzyMatchBrand = typeof fuzzyMatchBrand !== "undefined" ? fuzzyMatchBrand : undefined;
+this.inferFromFormat = typeof inferFromFormat !== "undefined" ? inferFromFormat : undefined;
 this.parseDealText = parseDealText;
 `;
 
@@ -67,7 +73,7 @@ try {
   process.exit(1);
 }
 
-const { parseDealText, matchByText, pkPlatforms, PK_PLATFORMS, matchByColor } = sandbox;
+const { parseDealText, matchByText, fuzzyMatchBrand, inferFromFormat, pkPlatforms, PK_PLATFORMS, matchByColor } = sandbox;
 
 console.log("\n=== Screenshot Reader Reliability Tests ===\n");
 
@@ -298,6 +304,56 @@ assert(thMatch[0] && thMatch[0].platform.id === "timhortons" && thMatch[0].score
 const unk = parseDealText("Enjoy 30% OFF with easypaisa debit cards", 0.6);
 assert(unk.fields.expires_at === null, "Real ad (no date) → no expiry");
 assert(unk.fields.validity_type === "unknown", "Real ad (no date) → validity_type 'unknown'");
+
+// ---- 16. Fuzzy brand matching + category separation ----
+console.log("\n--- 16. Fuzzy brand matching (OCR logo errors) ---");
+// Tim orton → Tim Hortons (multi-word phrase, dropped leading 'h')
+const th = fuzzyMatchBrand("AT Tim orton this week", pkPlatforms());
+assert(th[0] && th[0].platform.id === "timhortons" && th[0].score >= 0.78, "Fuzzy: 'Tim orton' → Tim Hortons");
+// asypaisa → Easypaisa (single word, dropped leading 'e')
+const ep = fuzzyMatchBrand("WITH asypaisa DEBIT CARDS", pkPlatforms());
+assert(ep[0] && ep[0].platform.id === "easypaisa" && ep[0].score >= 0.78, "Fuzzy: 'asypaisa' → Easypaisa");
+// Exact clear text still recognized strongly (not weakened by fuzzy)
+const exact = matchByText("Foodpanda exclusive offer", pkPlatforms());
+assert(exact[0] && exact[0].platform.id === "foodpanda" && exact[0].headerHit, "Exact brand text still recognized");
+
+// Ambiguity / short-name safety
+const noShort = fuzzyMatchBrand("I have plenty of time", pkPlatforms());
+assert(!noShort.find(m => m.platform.id === "timhortons"), "Common word 'time' does not fuzzy-match Tim Hortons");
+const noPartial = fuzzyMatchBrand("a slice of pizza now", pkPlatforms());
+assert(!noPartial.find(m => m.platform.id === "pizzahut"), "'pizza' alone does not fuzzy-match Pizza Hut");
+const noCup = fuzzyMatchBrand("I need a cup of coffee", pkPlatforms());
+assert(!noCup.find(m => m.platform.id === "secondcup"), "'cup'/'coffee' alone does not fuzzy-match Second Cup");
+
+// Generic phrases + color words never identify a brand on their own
+const genericFuzzy = fuzzyMatchBrand("ENJOY 30% OFF T&CS APPLY order now", pkPlatforms());
+assert(genericFuzzy.length === 0 || genericFuzzy[0].score < 0.78, "Generic ad phrases produce no confident fuzzy brand");
+const gMerchant = parseDealText("Enjoy 30% OFF. T&CS APPLY", 0.6);
+assert(!gMerchant.fields.merchant, "'T&Cs apply' does not identify a merchant");
+assert(!gMerchant.fields.provider, "'T&Cs apply' does not identify a provider");
+
+// Red color alone (no brand text) does not identify Tim Hortons via text/fuzzy
+const redNoText = parseDealText("30% OFF ENJOY NOW", 0.6);
+assert(redNoText.fields.merchant !== "Tim Hortons" && !redNoText.fields.merchant_id, "Red-only ad text does not name Tim Hortons");
+
+// Category inference: 'debit cards' is a PAYMENT method, never the merchant category
+const catText = "30% OFF with easypaisa DEBIT CARDS at Tim Hortons";
+const clues = inferFromFormat(catText, { height: 2000, width: 1000 });
+const bankClues = clues.filter(c => c.segment === "bank");
+assert(bankClues.every(c => c.type === "payment"), "'debit cards' bank clue is typed payment, not merchant");
+assert(clues.filter(c => c.type === "merchant").every(c => c.segment !== "bank"), "No merchant-type clue selects Bank category");
+
+// Merchant / provider / offer / validity stay distinct for the Tim Hortons example
+const distinct = parseDealText("30% OFF with Easypaisa debit cards at Tim Hortons. Code TH30.", 0.7);
+assert(distinct.fields.provider === "Easypaisa", "Provider = Easypaisa (payment sponsor)");
+assert(distinct.fields.merchant === "Tim Hortons", "Merchant = Tim Hortons (redemption venue)");
+assert(distinct.fields.provider !== distinct.fields.merchant, "Provider and merchant are distinct");
+assert(distinct.fields.discount_value === 30, "Offer/discount kept separate (30%)");
+assert(distinct.fields.code === "TH30", "Code TH30 preserved");
+
+// Unrecognized screenshots still allow manual completion (UI affordance present)
+assert(js.includes("ssManualSkip") && js.includes("Enter details manually"), "Neutral fallback offers manual entry");
+assert(js.includes("ai-neutral-hint"), "Neutral category hint exists when inference fails");
 
 console.log(`\n==== ${passed} passed, ${failed} failed ====\n`);
 process.exit(failed > 0 ? 1 : 0);

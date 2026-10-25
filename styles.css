@@ -493,6 +493,8 @@ button{touch-action:manipulation}
 .ai-runners{margin:8px 0 4px}
 .ai-runners-label{display:block;font-size:11px;font-weight:700;color:var(--mut);margin-bottom:6px}
 .plat-chip.ai-runner{border-color:rgba(37,99,235,.25);background:rgba(37,99,235,.05);font-size:11px}
+.ai-neutral-hint{font-size:12px;color:var(--mut);margin:2px 0 10px;line-height:1.4}
+.plat-manual{width:100%;text-align:center;border-style:dashed;border-color:var(--accent2);color:var(--accent2);margin-top:4px}
 .form textarea{min-height:80px;resize:vertical}
 .form .submit{width:100%;margin-top:18px;padding:14px;border-radius:14px;border:none;
   background:var(--grad-main);color:#fff;font-weight:700;font-size:15px;cursor:pointer;
