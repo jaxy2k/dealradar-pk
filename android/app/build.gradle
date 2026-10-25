@@ -10,8 +10,8 @@ android {
         applicationId "com.dealradar.pk"
         minSdk 24
         targetSdk 34
-        versionCode 11
-        versionName "10.0-debug"
+        versionCode 12
+        versionName "10.1-debug"
     }
 
     buildTypes {
@@ -29,4 +29,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+}
+
+dependencies {
+    // ML Kit Text Recognition (bundled model — works offline, no API key)
+    implementation 'com.google.mlkit:text-recognition:16.0.1'
 }

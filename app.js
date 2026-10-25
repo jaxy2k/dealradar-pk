@@ -2205,16 +2205,22 @@ function applyVerification(d, typeKey) {
 // Handles: full app screenshots, cropped vouchers, SMS texts, promo images, stories.
 // Speed: header crop OCR (~200ms) + color analysis (~50ms) + keyword scan (~5ms).
 
+// Pakistan eligibility: platforms without operatesIn default to PK.
+// Non-PK platforms are excluded from matching unless explicitly confirmed by text.
+function pkPlatforms() {
+  return PK_PLATFORMS.filter(p => !p.operatesIn || p.operatesIn.includes("PK"));
+}
+
 const PK_PLATFORMS = [
   // ===== Q-COMMERCE / FOOD DELIVERY =====
   { id:"foodpanda", name:"Foodpanda", segment:"qcommerce", colors:["#d70f64","#e91e8c","#c2185b","#f06292"], keywords:["pandamart","panda pro","dmart","search for restaurants","popular restaurants","carts","pick-up","order now","t&cs apply","save 25%","flash deals","limited time offers","grocery","health & beauty","cakes & bakery","midnight cravings"], headerText:["foodpanda","panda","pandamart"], format:"app" },
   { id:"careem", name:"Careem", segment:"qcommerce", colors:["#00a94f","#00b359","#009944"], keywords:["careem","quik","careem quik","grocery","delivery","order food","restaurants"], headerText:["careem","quik"], format:"app" },
   { id:"bykea", name:"Bykea", segment:"qcommerce", colors:["#ffd600","#f5c400","#ffeb3b"], keywords:["bykea","ride","delivery","parcel"], headerText:["bykea"], format:"app" },
   { id:"keeta", name:"Keeta", segment:"qcommerce", colors:["#ff6b00","#ff8c00"], keywords:["keeta","food delivery"], headerText:["keeta"], format:"app" },
-  { id:"swvl", name:"Swvl", segment:"qcommerce", colors:["#7b2ff7","#9c4dff"], keywords:["swvl","bus","ride"], headerText:["swvl"], format:"app" },
-  { id:"indrive", name:"inDrive", segment:"qcommerce", colors:["#00c853","#00e676"], keywords:["indrive","in drive","ride","taxi"], headerText:["indrive","in drive"], format:"app" },
-  { id:"uber", name:"Uber", segment:"qcommerce", colors:["#000000","#1a1a1a"], keywords:["uber","ride","eats"], headerText:["uber"], format:"app" },
-  { id:"grab", name:"Grab", segment:"qcommerce", colors:["#00b14f","#00d15c"], keywords:["grab","food","delivery"], headerText:["grab"], format:"app" },
+  { id:"swvl", name:"Swvl", segment:"qcommerce", colors:["#7b2ff7","#9c4dff"], keywords:["swvl","bus","ride"], headerText:["swvl"], format:"app", operatesIn:["AE","SA"] },
+  { id:"indrive", name:"inDrive", segment:"qcommerce", colors:["#00c853","#00e676"], keywords:["indrive","in drive","ride","taxi"], headerText:["indrive","in drive"], format:"app", operatesIn:["PK"] },
+  { id:"uber", name:"Uber", segment:"qcommerce", colors:["#000000","#1a1a1a"], keywords:["uber","ride","eats"], headerText:["uber"], format:"app", operatesIn:["US","UK","AE"] },
+  { id:"grab", name:"Grab", segment:"qcommerce", colors:["#00b14f","#00d15c"], keywords:["grab","food","delivery"], headerText:["grab"], format:"app", operatesIn:["SG","MY","TH"] },
 
   // ===== E-COMMERCE =====
   { id:"daraz", name:"Daraz", segment:"ecommerce", colors:["#f57224","#f85606","#ff6a00","#e8590c"], keywords:["daraz","flash sale","collect","voucher","daraz mall","free shipping","daraz 11.11","daraz 12.12","coins","lazada"], headerText:["daraz"], format:"app" },
@@ -2600,21 +2606,23 @@ async function aiGuessPlatform(dataUrl, ocrText) {
   try {
     const img = await loadImage(dataUrl);
 
-    // Tier 1: Header color analysis (top 15% of image)
+    // Tier 1: Header color analysis (top 15% of image) — PK platforms only
     const headerColors = analyzeRegion(img, 0, 0, img.width, Math.round(img.height * 0.15));
-    const headerColorMatches = matchByColor(headerColors, PK_PLATFORMS);
+    const headerColorMatches = matchByColor(headerColors, pkPlatforms());
 
-    // Tier 2: Full-page color analysis
+    // Tier 2: Full-page color analysis — PK platforms only
     const fullColors = analyzeFullColors(img);
-    const fullColorMatches = matchByColor(fullColors, PK_PLATFORMS);
+    const fullColorMatches = matchByColor(fullColors, pkPlatforms());
 
-    // Tier 3: Text matching (full OCR text)
+    // Tier 3: Text matching — all platforms (text is explicit evidence)
     const textMatches = matchByText(ocrText, PK_PLATFORMS);
 
     // Tier 4: Format inference (for vague screenshots)
     const formatClues = inferFromFormat(ocrText, img);
 
     // Combine all signals with weights
+    // Color is a secondary clue ONLY — never sufficient evidence alone.
+    // Text (recognized brand name) is the primary signal.
     const combined = {};
     const addScore = (platformId, score, weight, source) => {
       if (!combined[platformId]) combined[platformId] = { platform: PK_PLATFORMS.find(p => p.id === platformId), scores: {}, total: 0 };
@@ -2622,12 +2630,12 @@ async function aiGuessPlatform(dataUrl, ocrText) {
       combined[platformId].scores[source] = Math.max(combined[platformId].scores[source] || 0, weighted);
     };
 
-    // Header color is strong (0.35) — app headers are distinctive
-    headerColorMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.35, "headerColor"));
-    // Full color is supporting (0.2)
-    fullColorMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.2, "fullColor"));
-    // Text is strongest (0.45) — brand name in text = near-certain
-    textMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.45, "text"));
+    // Header color is weak (0.12) — only supports, never leads
+    headerColorMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.12, "headerColor"));
+    // Full color is weakest (0.06) — ambient color is unreliable
+    fullColorMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.06, "fullColor"));
+    // Text is dominant (0.65) — brand name in text = near-certain
+    textMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.65, "text"));
 
     // Apply founder profile boosts + correction memory boosts
     for (const id of Object.keys(combined)) {
@@ -2635,6 +2643,11 @@ async function aiGuessPlatform(dataUrl, ocrText) {
       const brandBoost = FounderProfile.getBrandBoost(id);
       const corrBoost = getCorrectionBoost(id);
       combined[id].total = Object.values(combined[id].scores).reduce((a, b) => a + b, 0) * segBoost * brandBoost * corrBoost;
+      // HARD INVARIANT: color-only matches (no text evidence) are capped at 0.14
+      // — below the 0.15 suggestion threshold. Color alone is never sufficient.
+      if (!combined[id].scores.text) {
+        combined[id].total = Math.min(combined[id].total, 0.14);
+      }
     }
 
     // Format clues boost segments (not specific brands)
@@ -2669,12 +2682,13 @@ async function aiGuessPlatform(dataUrl, ocrText) {
 
 // ---- modular deal extractor (Phase 3) ----
 // Not hard-wired to one model. Providers are tried in order; each returns
-// { fields, confidence, provider }. Today: Tesseract.js OCR + regex. Later a
-// cloud vision/LLM provider can be appended without touching callers.
+// { fields, confidence, provider }. Priority: native ML Kit (offline, fast)
+// → Tesseract.js CDN (browser fallback). Later a cloud vision/LLM provider
+// can be appended without touching callers.
 const DealExtractor = {
   providers: [],
   register(p) { this.providers.push(p); },
-  async extract(imageDataUrl, timeoutMs = 8000) {
+  async extract(imageDataUrl, timeoutMs = 12000) {
     const timer = new Promise((_, rej) => setTimeout(() => rej(new Error("OCR timed out — fill manually")), timeoutMs));
     try { return await Promise.race([this._runProviders(imageDataUrl), timer]); }
     catch (e) { return { fields: {}, confidence: 0, provider: "timeout", raw: "", error: e.message }; }
@@ -2689,6 +2703,20 @@ const DealExtractor = {
     return { fields: {}, confidence: 0, provider: "none", raw: "" };
   }
 };
+
+// Native ML Kit provider (Android APK only — offline, bundled model)
+DealExtractor.register(async (dataUrl) => {
+  if (!window.AndroidBridge || typeof window.AndroidBridge.ocrBase64 !== "function") {
+    throw new Error("Native OCR not available");
+  }
+  const jsonStr = window.AndroidBridge.ocrBase64(dataUrl);
+  const result = JSON.parse(jsonStr);
+  if (result.error) throw new Error(result.error);
+  const raw = result.text || "";
+  const ocrConfidence = result.confidence != null ? result.confidence : null;
+  const parsed = parseDealText(raw, ocrConfidence);
+  return { fields: parsed.fields, confidence: parsed.confidence, conf: parsed.conf, evidence: parsed.evidence, provider: "mlkit", raw, ocrConfidence, words: result.words };
+});
 
 // Lazy-load Tesseract.js OCR from CDN (kept optional — app still works offline without it)
 let _tessLoading = null;
@@ -2708,70 +2736,235 @@ function loadTesseract() {
   return _tessLoading;
 }
 
-// Parse extracted text into structured deal fields with per-field confidence
-function parseDealText(text) {
+// Parse extracted text into structured deal fields with per-field confidence.
+// HARD INVARIANTS:
+//  - Never fabricate expiry from upload time. Only use explicit dates found in text.
+//  - Relative countdowns ("30 min left") are NOT converted to calendar dates.
+//  - Recurring patterns ("every Fri-Sun") are detected separately from fixed dates.
+//  - Coupon codes preserve exact OCR characters; never replaced with alternatives.
+//  - Confidence reflects actual evidence quality, not hardcoded constants.
+function parseDealText(text, ocrConfidence) {
   const fields = {};
   const conf = {};
+  const evidence = {};
   const T = String(text || "");
+  const baseConf = ocrConfidence != null ? Math.max(0.2, Math.min(1, ocrConfidence)) : 0.5;
 
   // Discount %
   const pct = T.match(/(\d{1,3})\s*%\s*(?:off|discount|cashback|save)?/i);
-  if (pct && +pct[1] <= 90) { fields.discount_kind = "percent"; fields.discount_value = +pct[1]; conf.discount_value = 0.8; }
+  if (pct && +pct[1] <= 90) {
+    fields.discount_kind = "percent"; fields.discount_value = +pct[1];
+    conf.discount_value = baseConf * 0.9;
+    evidence.discount_value = `Found "${pct[0].trim()}" in text`;
+  }
   // Flat Rs off
   const flat = T.match(/Rs\.?\s*([\d,]{2,})\s*(?:off|discount)?/i);
-  if (!fields.discount_value && flat) { fields.discount_kind = "flat"; fields.discount_value = +flat[1].replace(/,/g, ""); conf.discount_value = 0.75; }
-  // BOGO
-  if (/buy\s*1\s*get\s*1|bogo|buy one get one/i.test(T)) { fields.discount_kind = "bogo"; conf.discount_kind = 0.7; }
-
-  // Promo code — must contain a digit, and not be a keyword word
-  const CODE_WORDS = /^(code|coupon|promo|voucher|use|deal|offer|discount|free|today|only|checkout|valid|till|until|the|and|with|save|get|buy|now|ends|minutes?|hours?|days?)$/i;
-  let codeMatch = T.match(new RegExp(`\\b(?:code|coupon|promo|voucher)\\s*[:\\-]?\\s*([A-Z0-9]{4,12})\\b`, "i"));
-  let codeTok = codeMatch ? codeMatch[1] : null;
-  if (!codeTok || CODE_WORDS.test(codeTok) || !/\d/.test(codeTok)) {
-    const alt = T.match(/\b([A-Z]{2,8}\d{2,6}|\d{2,6}[A-Z]{2,8})\b/);
-    codeTok = alt && !CODE_WORDS.test(alt[1]) ? alt[1] : null;
+  if (!fields.discount_value && flat) {
+    fields.discount_kind = "flat"; fields.discount_value = +flat[1].replace(/,/g, "");
+    conf.discount_value = baseConf * 0.8;
+    evidence.discount_value = `Found "${flat[0].trim()}" in text`;
   }
-  if (codeTok && !CODE_WORDS.test(codeTok) && /\d/.test(codeTok)) { fields.code = codeTok.toUpperCase(); conf.code = 0.6; }
+  // BOGO
+  if (/buy\s*1\s*get\s*1|bogo|buy one get one/i.test(T)) {
+    fields.discount_kind = "bogo";
+    conf.discount_kind = baseConf * 0.7;
+    evidence.discount_kind = "BOGO pattern found in text";
+  }
+  // Cap
+  const cap = T.match(/(?:up to|max(?:imum)?|cap(?:ped)? at?)\s*Rs\.?\s*([\d,]+)/i);
+  if (cap) { fields.discount_cap = +cap[1].replace(/,/g, ""); conf.discount_cap = baseConf * 0.7; evidence.discount_cap = `Found "${cap[0].trim()}"`; }
 
-  // Expiry
+  // Promo code — must be near a label, contain alphanumeric, preserve exact chars
+  const CODE_WORDS = /^(code|coupon|promo|voucher|use|deal|offer|discount|free|today|only|checkout|valid|till|until|the|and|with|save|get|buy|now|ends|minutes?|hours?|days?)$/i;
+  let codeMatch = T.match(new RegExp(`\\b(?:code|coupon|promo|voucher)\\s*[:\\-]?\\s*([A-Za-z0-9]{4,12})\\b`, "i"));
+  let codeTok = codeMatch ? codeMatch[1] : null;
+  if (!codeTok || CODE_WORDS.test(codeTok)) {
+    // Fallback: standalone alphanumeric token that looks like a code
+    const alt = T.match(/\b([A-Z]{2,8}\d{2,6}|\d{2,6}[A-Z]{2,8}|[A-Z0-9]{5,10})\b/g);
+    if (alt) {
+      for (const cand of alt) {
+        if (!CODE_WORDS.test(cand) && /[A-Z]/.test(cand) && /\d/.test(cand)) { codeTok = cand; break; }
+      }
+    }
+  }
+  if (codeTok && !CODE_WORDS.test(codeTok)) {
+    fields.code = codeTok.toUpperCase(); // preserve exact characters
+    conf.code = codeMatch ? baseConf * 0.85 : baseConf * 0.5; // labelled = higher confidence
+    evidence.code = codeMatch ? `Found near label: "${codeMatch[0].trim()}"` : `Standalone token "${codeTok}" (unlabelled — verify)`;
+  }
+
+  // Expiry — ONLY explicit dates. Never compute from upload time.
   const mon = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec";
   let expires_at = null;
+  let validity_type = "unknown"; // "fixed" | "recurring" | "ongoing" | "unknown"
+  let valid_days = null;
+
+  // Fixed date patterns: "31 Dec 2026", "Dec 31", "31/12/2026", "31-12-26"
   const dmy = T.match(new RegExp(`(\\d{1,2})[\\s\\-/](${mon})[a-z]*[\\s\\-/]?(\\d{2,4})`, "i"));
   if (dmy) {
     const yr = dmy[3].length === 2 ? "20" + dmy[3] : dmy[3];
     const dt = new Date(`${dmy[2].slice(0,3)} ${dmy[1]}, ${yr} 23:59:59`);
-    if (!isNaN(dt)) expires_at = dt.toISOString();
+    if (!isNaN(dt) && dt > NOW) {
+      expires_at = dt.toISOString();
+      validity_type = "fixed";
+      conf.expires_at = baseConf * 0.7;
+      evidence.expires_at = `Explicit date found: "${dmy[0]}"`;
+    }
   }
-  const rel = T.match(/(\d{1,3})\s*(min|minute|hour|hr|day)s?\b/i);
-  if (!expires_at && rel) {
-    const n = +rel[1], unit = rel[2].toLowerCase();
-    const ms = unit.startsWith("min") ? n * 6e4 : unit.startsWith("h") ? n * 36e5 : n * 864e5;
-    expires_at = new Date(Date.now() + ms).toISOString();
-    conf.expires_at = 0.5;
+  // Numeric date: "31/12/2026" or "12/31/26"
+  if (!expires_at) {
+    const numDate = T.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (numDate) {
+      const [_, a, b, yrRaw] = numDate;
+      const yr = yrRaw.length === 2 ? "20" + yrRaw : yrRaw;
+      // Try DD/MM first (PK convention)
+      let dt = new Date(`${yr}-${String(b).padStart(2,"0")}-${String(a).padStart(2,"0")}T23:59:59`);
+      if (isNaN(dt) || dt < NOW) dt = new Date(`${yr}-${String(a).padStart(2,"0")}-${String(b).padStart(2,"0")}T23:59:59`);
+      if (!isNaN(dt) && dt > NOW) {
+        expires_at = dt.toISOString();
+        validity_type = "fixed";
+        conf.expires_at = baseConf * 0.6;
+        evidence.expires_at = `Numeric date found: "${numDate[0]}" (interpreted DD/MM/YYYY)`;
+      }
+    }
   }
-  if (expires_at && conf.expires_at === undefined) conf.expires_at = 0.55;
-  fields.expires_at = expires_at;
+  // "Valid till/until X" pattern
+  if (!expires_at) {
+    const tillMatch = T.match(new RegExp(`(?:valid|till|until|expires?|ends?)\\s*(?:till|until|on|by)?\\s*(\\d{1,2}[\\s\\-/](?:${mon})[a-z]*[\\s\\-/]?\\d{2,4})`, "i"));
+    if (tillMatch) {
+      const inner = tillMatch[1];
+      const d2 = inner.match(new RegExp(`(\\d{1,2})[\\s\\-/](${mon})[a-z]*[\\s\\-/]?(\\d{2,4})`, "i"));
+      if (d2) {
+        const yr2 = d2[3].length === 2 ? "20" + d2[3] : d2[3];
+        const dt2 = new Date(`${d2[2].slice(0,3)} ${d2[1]}, ${yr2} 23:59:59`);
+        if (!isNaN(dt2) && dt2 > NOW) {
+          expires_at = dt2.toISOString();
+          validity_type = "fixed";
+          conf.expires_at = baseConf * 0.75;
+          evidence.expires_at = `"Valid till" label + date: "${tillMatch[0].trim()}"`;
+        }
+      }
+    }
+  }
 
-  // Merchant guess: first capitalized brand-ish token that matches a known brand
-  for (const b of DATA.brands) {
-    if (b.name && T.toLowerCase().includes(String(b.name).toLowerCase())) { fields.brand = b.name; conf.brand = 0.7; break; }
+  // Recurring validity: "every Friday", "Fri-Sun", "weekends", "Mon to Thu"
+  const dayMap = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6, monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
+  const dayKeys = ["mon","tue","wed","thu","fri","sat","sun"];
+  const recurRange = T.match(/\b(?:every|each)\s+(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*(?:to|till|until|-|–)\s*(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
+  if (recurRange) {
+    const start = dayMap[recurRange[1].toLowerCase().slice(0,3)];
+    const end = dayMap[recurRange[2].toLowerCase().slice(0,3)];
+    valid_days = [];
+    for (let i = start; i <= end; i++) valid_days.push(dayKeys[i % 7]);
+    validity_type = "recurring";
+    conf.valid_days = baseConf * 0.7;
+    evidence.valid_days = `Recurring range found: "${recurRange[0]}"`;
+  } else if (/\b(?:every\s+day|daily)\b/i.test(T)) {
+    valid_days = dayKeys.slice();
+    validity_type = "recurring";
+    conf.valid_days = baseConf * 0.7;
+    evidence.valid_days = `"Every day/daily" found`;
+  } else if (/\bweekends?\b/i.test(T)) {
+    valid_days = ["fri", "sat", "sun"];
+    validity_type = "recurring";
+    conf.valid_days = baseConf * 0.6;
+    evidence.valid_days = `"Weekend(s)" found — assumed Fri-Sun (PK convention)`;
+  } else {
+    // Single day: "every Friday"
+    const singleDay = T.match(/\b(?:every|each|on)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/i);
+    if (singleDay) {
+      const dk = dayKeys[dayMap[singleDay[1].toLowerCase().slice(0,3)]];
+      valid_days = [dk];
+      validity_type = "recurring";
+      conf.valid_days = baseConf * 0.65;
+      evidence.valid_days = `Single recurring day: "${singleDay[0]}"`;
+    }
   }
-  // Title: longest line that looks promotional
+
+  // "Ongoing" / "no expiry" / "always"
+  if (validity_type === "unknown" && /(?:ongoing|no expiry|always|permanent|indefinite)/i.test(T)) {
+    validity_type = "ongoing";
+    conf.validity_type = baseConf * 0.6;
+    evidence.validity_type = `"Ongoing/no expiry" language found`;
+  }
+
+  fields.expires_at = expires_at;
+  fields.validity_type = validity_type;
+  fields.valid_days = valid_days;
+
+  // Provider detection: banks/wallets (promotion sponsors)
+  const providerPlats = pkPlatforms().filter(p => p.segment === "bank" || p.segment === "ewallet");
+  const providerMatch = matchByText(T, providerPlats);
+  if (providerMatch.length > 0 && providerMatch[0].score > 0.4) {
+    fields.provider = providerMatch[0].platform.name;
+    fields.provider_id = providerMatch[0].platform.id;
+    conf.provider = baseConf * providerMatch[0].score;
+    evidence.provider = `Bank/wallet name found in text: "${providerMatch[0].platform.name}" (${providerMatch[0].hits} keyword hits)`;
+  }
+
+  // Merchant detection: food/retail/ecommerce (redemption locations)
+  const merchantPlats = pkPlatforms().filter(p => ["qcommerce","restaurant","grocery","ecommerce"].includes(p.segment));
+  const merchantMatch = matchByText(T, merchantPlats);
+  if (merchantMatch.length > 0 && merchantMatch[0].score > 0.4) {
+    fields.merchant = merchantMatch[0].platform.name;
+    fields.merchant_id = merchantMatch[0].platform.id;
+    conf.merchant = baseConf * merchantMatch[0].score;
+    evidence.merchant = `Merchant/platform name found: "${merchantMatch[0].platform.name}"`;
+  }
+
+  // If only one entity found, it's the brand (provider = merchant)
+  if (fields.provider && !fields.merchant) { fields.brand = fields.provider; }
+  else if (fields.merchant && !fields.provider) { fields.brand = fields.merchant; }
+  else if (fields.provider && fields.merchant) { fields.brand = fields.provider; } // provider takes priority as brand
+
+  // Fallback: check DATA.brands for any name match
+  if (!fields.brand) {
+    for (const b of DATA.brands) {
+      if (b.name && T.toLowerCase().includes(String(b.name).toLowerCase())) {
+        fields.brand = b.name; conf.brand = baseConf * 0.6;
+        evidence.brand = `Brand name "${b.name}" found in text`;
+        break;
+      }
+    }
+  }
+
+  // Title: longest promotional line
   const lines = T.split(/\n+/).map(s => s.trim()).filter(s => s.length > 8 && s.length < 90);
-  const promo = lines.find(l => /off|deal|discount|save|cashback|free|%|offer/i.test(l));
-  if (promo) { fields.title = promo.replace(/\s+/g, " "); conf.title = 0.4; }
+  const promo = lines.find(l => /off|deal|discount|save|cashback|free|%|offer|voucher/i.test(l));
+  if (promo) {
+    fields.title = promo.replace(/\s+/g, " ");
+    conf.title = baseConf * 0.5;
+    evidence.title = `Promotional line selected from ${lines.length} candidates`;
+  }
+
+  // City detection
+  const cityMatch = T.match(/\b(karachi|lahore|islamabad|rawalpindi|multan|faisalabad|peshawar|quetta|sialkot|gujranwala|hyderabad|all pakistan|nationwide)\b/i);
+  if (cityMatch) {
+    fields.city = cityMatch[1].toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    if (fields.city === "All Pakistan" || fields.city === "Nationwide") fields.city = "All Pakistan";
+    conf.city = baseConf * 0.7;
+    evidence.city = `City name found: "${cityMatch[0]}"`;
+  }
 
   const vals = Object.values(conf);
   const confidence = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-  return { fields, confidence, conf };
+  return { fields, confidence, conf, evidence };
 }
 
 DealExtractor.register(async (dataUrl) => {
   const Tess = await loadTesseract();
   const { data } = await Tess.recognize(dataUrl);
   const raw = data.text || "";
-  const parsed = parseDealText(raw);
-  return { fields: parsed.fields, confidence: parsed.confidence, conf: parsed.conf, provider: "tesseract", raw };
+  // Compute real OCR confidence from word-level data (0-100 → 0-1)
+  let ocrConfidence = null;
+  if (data.words && data.words.length > 0) {
+    const avg = data.words.reduce((a, w) => a + (w.confidence || 0), 0) / data.words.length;
+    ocrConfidence = Math.max(0, Math.min(1, avg / 100));
+  } else if (data.confidence != null) {
+    ocrConfidence = Math.max(0, Math.min(1, data.confidence / 100));
+  }
+  const parsed = parseDealText(raw, ocrConfidence);
+  return { fields: parsed.fields, confidence: parsed.confidence, conf: parsed.conf, evidence: parsed.evidence, provider: "tesseract", raw, ocrConfidence };
 });
 
 // ---- screenshot submission (Phase 3 + AI Brand Recognition) ----
@@ -2850,11 +3043,27 @@ function openScreenshotSubmit(preDataUrl, preFile) {
 
       prog.classList.add("hidden");
 
+      // ---- Diagnostic: show raw OCR text in collapsible area ----
+      const diagHtml = ocrOut.raw
+        ? `<details class="ss-diag"><summary>🔍 What the reader saw (tap to expand)</summary><pre class="ss-diag-text">${esc(ocrOut.raw.slice(0, 2000))}</pre></details>`
+        : "";
+
+      // Distinguish OCR failure states
+      const ocrStatus = ocrOut.provider === "timeout" ? "timeout"
+        : ocrOut.provider === "none" ? "unavailable"
+        : (!ocrOut.raw || ocrOut.raw.trim().length < 5) ? "no_text"
+        : "ok";
+
       // If OCR produced nothing useful, show manual form immediately
-      const hasUsefulFields = f.brand || f.title || f.discount_value || f.code;
-      if (!hasUsefulFields && (ocrOut.provider === "none" || ocrOut.provider === "timeout")) {
+      const hasUsefulFields = f.brand || f.title || f.discount_value || f.code || f.provider;
+      if (!hasUsefulFields && (ocrStatus === "unavailable" || ocrStatus === "timeout" || ocrStatus === "no_text")) {
+        const failMsgs = {
+          timeout: "⏱️ OCR timed out — the image may be too large or complex. Fill details manually.",
+          unavailable: "📴 Auto-read isn't available on this device (needs internet for OCR engine). Fill the details below.",
+          no_text: "🔍 No readable text found in this image. It may be a photo, not a screenshot. Fill details manually."
+        };
         $("#ssForm").classList.remove("hidden");
-        $("#ssWarn").innerHTML = `⚠️ Auto-read isn't available on this device. Fill the details below — takes 10 seconds.`;
+        $("#ssWarn").innerHTML = (failMsgs[ocrStatus] || "⚠️ Couldn't read this image.") + diagHtml;
         $("#ssWarn").className = "ss-warn warn";
         $("#ssForm").dataset.confidence = "0.3";
         $("#ssForm").dataset.provider = "manual";
@@ -2998,25 +3207,47 @@ function openScreenshotSubmit(preDataUrl, preFile) {
         renderPlatformList(defaultSeg);
       }
 
-      // Pre-fill deal fields from OCR
+      // Pre-fill deal fields from OCR (structured, evidence-based)
       // Clean OCR garbage from title (leading single chars, numbers, UI noise)
       let cleanTitle = (f.title || "").replace(/^[a-z]\s+\d+\s+/i, "").replace(/^\d+\s+/, "").trim();
       $("#ssTitle").value = cleanTitle;
       $("#ssKind").value = f.discount_kind || "none";
       $("#ssValue").value = f.discount_value != null ? f.discount_value : "";
       $("#ssCode").value = f.code || "";
-      if (f.expires_at) {
+
+      // Validity: use structured validity_type from extraction
+      if (f.validity_type === "recurring" && f.valid_days) {
+        $("#ssValidity").value = "recurring";
+        $("#ssValidity").dispatchEvent(new Event("change"));
+        $$("#ssDays input[name=valid_day]").forEach(cb => { cb.checked = f.valid_days.includes(cb.value); });
+      } else if (f.validity_type === "ongoing") {
+        $("#ssValidity").value = "ongoing";
+        $("#ssValidity").dispatchEvent(new Event("change"));
+      } else if (f.expires_at) {
+        $("#ssValidity").value = "until";
         const d = new Date(f.expires_at), pad = n => String(n).padStart(2, "0");
         $("#ssExpires").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
       }
-      // If OCR found a brand, pre-fill (AI guess takes priority on confirm)
+      // If validity is unknown, leave the selector at default ("until") with no date — user decides
+
+      // Provider/merchant separation from structured extraction
+      if (f.provider && !$("#ssProvider").value) {
+        $("#ssProvider").value = f.provider;
+        $("#ssProvider").dispatchEvent(new Event("input"));
+      }
+      if (f.merchant && !$("#ssMerchant").value) {
+        $("#ssMerchant").value = f.merchant;
+        $("#ssMerchant").dispatchEvent(new Event("input"));
+      }
+      // Fallback: if only brand found (no provider/merchant split), use as provider
       if (f.brand && !$("#ssProvider").value) {
         $("#ssProvider").value = f.brand;
         $("#ssProvider").dispatchEvent(new Event("input"));
       }
+
       // Title-based bank override: if title mentions a specific bank different from OCR brand, prefer title
       if (cleanTitle.length > 5) {
-        const titleBankMatch = matchByText(cleanTitle, PK_PLATFORMS.filter(p => p.segment === "bank" || p.segment === "ewallet"));
+        const titleBankMatch = matchByText(cleanTitle, pkPlatforms().filter(p => p.segment === "bank" || p.segment === "ewallet"));
         if (titleBankMatch.length > 0 && titleBankMatch[0].score > 0.5) {
           const titleBank = titleBankMatch[0].platform;
           const currentProv = $("#ssProvider").value.trim().toLowerCase();
@@ -3029,15 +3260,19 @@ function openScreenshotSubmit(preDataUrl, preFile) {
           }
         }
       }
-      // Warn about uncertain fields
+
+      // Warn about uncertain fields — use real confidence, not fabricated percentages
       const c = ocrOut.conf || {};
       const uncertain = [];
-      if ((c.discount_value ?? 0) < 0.6 && f.discount_value != null) uncertain.push("discount");
-      if ((c.expires_at ?? 0) < 0.6) uncertain.push("end time");
-      if ((c.title ?? 0) < 0.5) uncertain.push("offer text");
-      $("#ssWarn").innerHTML = uncertain.length
-        ? `⚠️ Double-check: <b>${uncertain.join(", ")}</b> — OCR read them with low confidence.`
+      if ((c.discount_value ?? 0) < 0.5 && f.discount_value != null) uncertain.push("discount");
+      if ((c.code ?? 0) < 0.5 && f.code) uncertain.push("promo code");
+      if ((c.expires_at ?? 0) < 0.5 && f.expires_at) uncertain.push("end date");
+      if ((c.valid_days ?? 0) < 0.5 && f.valid_days) uncertain.push("recurring days");
+      if ((c.title ?? 0) < 0.4) uncertain.push("offer text");
+      const warnBase = uncertain.length
+        ? `⚠️ Double-check: <b>${uncertain.join(", ")}</b> — low confidence from OCR.`
         : `✅ Please verify these details are correct before submitting.`;
+      $("#ssWarn").innerHTML = warnBase + diagHtml;
       $("#ssWarn").className = "ss-warn " + (uncertain.length ? "warn" : "ok");
       $("#ssForm").dataset.confidence = String(ocrOut.confidence || 0.4);
       $("#ssForm").dataset.provider = ocrOut.provider || "none";

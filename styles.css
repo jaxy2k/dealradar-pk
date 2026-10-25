@@ -445,6 +445,10 @@ button{touch-action:manipulation}
 .ss-warn{padding:10px 12px;border-radius:10px;font-size:12.5px;font-weight:600;margin-bottom:6px}
 .ss-warn.warn{background:rgba(245,158,11,.12);color:#b45309}
 .ss-warn.ok{background:rgba(34,197,94,.12);color:#15803d}
+.ss-diag{margin-top:8px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ss-diag summary{padding:8px 12px;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer;background:var(--fill)}
+.ss-diag-text{margin:0;padding:10px 12px;font-size:11px;line-height:1.5;color:var(--body);
+  white-space:pre-wrap;word-break:break-word;max-height:150px;overflow-y:auto;background:var(--card)}
 /* Phase 4: verification loop */
 .verify-block{margin-bottom:14px}
 .verify-head{font-size:13px;font-weight:700;color:var(--mut);display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
