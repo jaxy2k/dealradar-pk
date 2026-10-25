@@ -1193,11 +1193,11 @@ function dealCard(d, opts = {}) {
     ${/^https:\/\//.test(mi.cover || "") ? `<div class="ticket-cover${opts.featured ? "" : " compact"}"><img src="${esc(mi.cover)}" alt="${esc(merchant || b.name)}" loading="lazy" onerror="this.parentElement.remove()"></div>` : ""}
     ${logoHtml}
     <div class="deal-body">
-      <div class="deal-brand">${founderBadge}<span class="bn">${esc(b.name)}</span>${merchantLine}${offerTypeChip(d)}</div>
+      <div class="deal-brand">${founderBadge}<span class="bn">${esc(b.name)}</span>${merchantLine}${discHtml ? `<span class="disc-badge">${discHtml}</span>` : ""}</div>
       <h3 class="deal-title">${esc(crispTitle(d))}</h3>
-      <div class="ticket-value">${discHtml}${capLabel}</div>
       <div class="deal-sub">
         ${cardType}
+        ${capLabel}
         ${flashTag ? `<span class="card-type">${flashTag}</span>` : ""}
         <span class="pill ${cd.cls}" data-countdown="${d.id}">${expiryPillInner(d)}</span>
         ${mine ? `<span class="matchflag">${ic("check")}${t("yourCard")}</span>` : ""}
@@ -1703,7 +1703,7 @@ function renderDiscovery() {
     saved: ["آپ کی محفوظ آفرز۔", "بعد کے لیے محفوظ کی گئی ڈیلز — ختم ہونے سے پہلے دیکھیں۔"],
     cards: ["آپ کا کارڈ۔ آپ کی آفرز۔", "منتخب طریقۂ ادائیگی کے مطابق — مکمل شرائط ضرور دیکھیں۔"]
   } : {
-    home: ["Good finds. Less spend.", "The best offers for your city, your cards, your everyday."],
+    home: ["Good finds. Less spend.", "Best offers for your city & cards."],
     explore: ["Browse. Compare. Save.", "Categories, collections, and real deadlines — all in one place."],
     saved: ["Your saved offers.", "Deals you bookmarked — check them before they expire."],
     cards: ["Your cards. More possibilities.", "Matched payment methods, not guaranteed eligibility. Check the terms."]
@@ -2026,9 +2026,13 @@ function openSubmit() {
   pushNav("submit");
   $("#sheet").innerHTML = `<div class="grab"></div>
     <h3>📸 Got a deal screenshot?</h3>
-    <p class="sheet-summary">Drop it here — I'll try to read the brand, offer and expiry automatically. If auto-read isn't available, just type the details.</p>
-    <div class="drop-zone ss-drop ss-hero" id="ssQuick"><div class="icon">🖼️</div><p><b>Tap to choose a screenshot</b><br><span class="ss-sub">Foodpanda, Daraz, bank offers… any deal image</span></p></div>
+    <p class="sheet-summary">I'll read the brand, offer & expiry automatically. No auto-read? Just type it.</p>
+    <div class="drop-zone ss-drop ss-hero" id="ssQuick">
+      <div class="ss-preview hidden" id="ssPreview"><img id="ssPreviewImg" alt="Selected screenshot"><button type="button" class="ss-change" id="ssChange">Change</button></div>
+      <div class="ss-empty" id="ssEmpty"><div class="icon">🖼️</div><p><b>Tap to choose a screenshot</b><br><span class="ss-sub">Foodpanda, Daraz, bank offers… any deal image</span></p></div>
+    </div>
     <input type="file" id="ssQuickInput" accept="image/*" hidden>
+    <button class="ss-process hidden" id="ssProcess" type="button">→ Read this image</button>
     <div class="ss-or"><span>or</span></div>
     <button class="ss-manual-toggle" id="manualToggle" type="button">✏️ Type it yourself</button>
     <form class="form hidden" id="submitForm">
@@ -2041,21 +2045,33 @@ function openSubmit() {
       <select name="city">${CITIES.slice(1).map(c => `<option>${c}</option>`).join("")}<option>All Pakistan</option></select>
       <label>Valid until <span class="opt">(optional — defaults to 24h)</span></label><input name="valid_until" type="date" readonly id="vuDate">
       <button class="submit" type="submit">Submit to Spotted</button>
-    </form>
-    <div class="founder-zone">
-      <label class="f-check"><input type="checkbox" id="founderToggle" ${isFounder() ? "checked" : ""}> 👑 I'm the founder</label>
-      <button class="founder-btn" id="founderBtn" type="button">⚡ Add a flash deal (founder)</button>
-    </div>`;
+    </form>`;
   showSheet();
   // Screenshot is the primary path — pick image right here, no extra navigation
   const quick = $("#ssQuick"), quickInput = $("#ssQuickInput");
-  quick.addEventListener("click", () => quickInput.click());
+  let selectedDataUrl = null;
+  quick.addEventListener("click", e => {
+    if (e.target.closest(".ss-change")) return; // "Change" button handles its own click
+    quickInput.click();
+  });
+  $("#ssChange").addEventListener("click", e => { e.stopPropagation(); quickInput.value = ""; quickInput.click(); });
   quickInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => { closeSheet(); setTimeout(() => openScreenshotSubmit(ev.target.result, file), 260); };
+    reader.onload = ev => {
+      selectedDataUrl = ev.target.result;
+      $("#ssPreviewImg").src = selectedDataUrl;
+      $("#ssPreview").classList.remove("hidden");
+      $("#ssEmpty").classList.add("hidden");
+      $("#ssProcess").classList.remove("hidden");
+    };
     reader.readAsDataURL(file);
+  });
+  $("#ssProcess").addEventListener("click", () => {
+    if (!selectedDataUrl) return;
+    closeSheet();
+    setTimeout(() => openScreenshotSubmit(selectedDataUrl, null), 260);
   });
   // Date field must not open keyboard/calendar while scrolling — only on explicit tap
   const vu = $("#vuDate");
@@ -2066,8 +2082,6 @@ function openSubmit() {
     $("#manualToggle").classList.toggle("open");
     if (!$("#submitForm").classList.contains("hidden")) $("#merchantInput").focus();
   });
-  $("#founderToggle").addEventListener("change", e => setFounder(e.target.checked));
-  $("#founderBtn").addEventListener("click", () => { setFounder(true); $("#founderToggle").checked = true; closeSheet(); setTimeout(openFounderSubmit, 260); });
   const hintEl = $("#merchantHint");
   const updateHint = () => {
     const val = $("#merchantInput").value.trim();
