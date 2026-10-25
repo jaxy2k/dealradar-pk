@@ -1076,7 +1076,19 @@ function tabDeals() {
   switch (state.tab) {
     case "home": return byHeat(all.filter(d => d.status !== "evergreen" && d.status !== "spotted"));
     case "explore": return all;
-    case "saved": return all.filter(d => state.saved.has(d.id));
+    case "saved": {
+      // Saved tab: only search applies, not city/category/otype filters
+      const q = state.q.trim().toLowerCase();
+      return DATA.deals.filter(d => {
+        if (!state.saved.has(d.id)) return false;
+        if (d.status === "evergreen") return false;
+        if (q) {
+          const hay = (d.title + " " + d.summary + " " + brandOf(d.brand).name + " " + (d.eligibility?.merchant || "") + " " + d.cities.join(" ") + " " + d.category).toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    }
     case "cards": return byHeat(all.filter(d => isMine(d) && d.status !== "evergreen"));
   }
   return all;
@@ -1713,6 +1725,12 @@ function renderDiscovery() {
 }
 
 function renderChips() {
+  // Only Home shows the category tabs + filter row; other tabs have their own UI
+  const showFilters = state.tab === "home";
+  $("#catTabs").classList.toggle("hidden", !showFilters);
+  $("#filterRow").classList.toggle("hidden", !showFilters);
+  if (!showFilters) return;
+
   const catIcons = { all: "🔥", food: "🍔", shopping: "🛍️", ecommerce: "📦", retail: "🏪", fuel: "", travel: "️", telecom: "📱", grocery: "🛒", electronics: "🔌", fashion: "👗", utilities: "💡" };
   $("#catTabs").innerHTML = CATS.map(([k, l]) =>
     `<button class="cat-tab${state.cat === k ? " active" : ""}" data-cat="${k}" aria-pressed="${state.cat === k}">` +
@@ -1721,7 +1739,8 @@ function renderChips() {
   const cityOpts = CITIES.map(c => `<option value="${c}" ${state.city === c ? "selected" : ""}>${c === "All" ? t("allCities") : c}</option>`).join("");
   const typeOpts = [["all", LANG === "ur" ? "تمام آفرز" : "All offers"], ["percent", "% Off"], ["flat", "Rs Off"], ["cashback", "Cashback"], ["bogo", "BOGO"], ["free_delivery", "Free Delivery"]].map(([k, l]) => `<option value="${k}" ${state.otype === k ? "selected" : ""}>${l}</option>`).join("");
   $("#filterRow").innerHTML = `<select class="fr-select" id="citySelect" aria-label="City">${cityOpts}</select>
-    <select class="fr-select" id="otypeSelect" aria-label="Offer type">${typeOpts}</select>`;
+    <select class="fr-select" id="otypeSelect" aria-label="Offer type">${typeOpts}</select>
+    <button class="fr-reset" id="resetFilters" type="button">${LANG === "ur" ? "ری سیٹ" : "Reset"}</button>`;
 }
 
 function renderWalletPanel() {
@@ -3492,6 +3511,14 @@ function wire() {
   $("#filterRow").addEventListener("change", e => {
     if (e.target.id === "citySelect") { state.city = e.target.value; renderChips(); scheduleRender(); updateBackBtn(); }
     if (e.target.id === "otypeSelect") { state.otype = e.target.value; renderChips(); scheduleRender(); updateBackBtn(); }
+  });
+  $("#filterRow").addEventListener("click", e => {
+    if (e.target.closest("#resetFilters")) {
+      state.city = "All"; state.cat = "all"; state.otype = "all"; state.q = ""; $("#q").value = "";
+      state.hiddenBrands.clear(); store.set("dr_hidden", "[]");
+      renderChips(); scheduleRender(); updateBackBtn();
+      toast(LANG === "ur" ? "فلٹرز ری سیٹ ہو گئے" : "Filters reset — hidden deals restored");
+    }
   });
   $("#feed").addEventListener("keydown", e => {
     if ((e.key === "Enter" || e.key === " ") && e.target.matches("article[data-id]")) { e.preventDefault(); e.target.click(); }
