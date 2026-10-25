@@ -2368,6 +2368,24 @@ function getCorrectionsFor(provider) {
   const key = normMerchant(provider);
   return correctionMemory().filter(c => normMerchant(c.provider) === key);
 }
+// Remember when user rejects an AI guess and picks the correct platform
+function rememberAICorrection(wrongGuess, correctPlatform, context) {
+  if (!wrongGuess || !correctPlatform || wrongGuess === correctPlatform) return;
+  const mem = aiCorrectionMemory().filter(c => !(c.wrong === wrongGuess && c.correct === correctPlatform));
+  mem.push({ wrong: wrongGuess, correct: correctPlatform, context: context || "", ts: Date.now() });
+  try { store.set("dr_ai_corrections", JSON.stringify(mem.slice(-100))); } catch (e) {}
+}
+function aiCorrectionMemory() {
+  try { return JSON.parse(store.get("dr_ai_corrections", "[]")); } catch { return []; }
+}
+// Get boost for a platform based on past corrections (user confirmed this platform before)
+function getCorrectionBoost(platformId) {
+  const mem = aiCorrectionMemory();
+  const confirmed = mem.filter(c => c.correct === platformId).length;
+  const rejected = mem.filter(c => c.wrong === platformId).length;
+  // Each confirmation adds 5% boost (max 30%), each rejection subtracts 5% (max 30%)
+  return Math.max(0.7, Math.min(1.3, 1 + (confirmed - rejected) * 0.05));
+}
 
 // ---- Founder Profile (user preference memory) ----
 const FounderProfile = {
@@ -2575,11 +2593,12 @@ async function aiGuessPlatform(dataUrl, ocrText) {
     // Text is strongest (0.45) — brand name in text = near-certain
     textMatches.slice(0, 5).forEach(m => addScore(m.platform.id, m.score, 0.45, "text"));
 
-    // Apply founder profile boosts
+    // Apply founder profile boosts + correction memory boosts
     for (const id of Object.keys(combined)) {
       const segBoost = FounderProfile.getSegmentBoost(id);
       const brandBoost = FounderProfile.getBrandBoost(id);
-      combined[id].total = Object.values(combined[id].scores).reduce((a, b) => a + b, 0) * segBoost * brandBoost;
+      const corrBoost = getCorrectionBoost(id);
+      combined[id].total = Object.values(combined[id].scores).reduce((a, b) => a + b, 0) * segBoost * brandBoost * corrBoost;
     }
 
     // Format clues boost segments (not specific brands)
@@ -2854,6 +2873,10 @@ function openScreenshotSubmit(preDataUrl, preFile) {
           </div>`;
         // Wire AI guess buttons
         function acceptPlatform(pl, conf) {
+          // Remember correction if AI guessed wrong
+          if (guess && guess.platform.id !== pl.id) {
+            rememberAICorrection(guess.platform.id, pl.id, "user_rejected_ai");
+          }
           $("#ssProvider").value = pl.name;
           $("#ssProvider").dispatchEvent(new Event("input"));
           $("#ssForm").dataset.aiPlatform = pl.id;
