@@ -99,18 +99,27 @@ a{color:var(--accent2);text-decoration:none}
 .wallet-btn.on{border-color:var(--brand);background:var(--brand-soft)}
 .wallet-btn.on .ic{color:var(--brand-ink)}
 
-/* ===== FILTER DISCLOSURE & ACCESSIBILITY ===== */
-.filter-disclosure{margin:0 16px 2px;border-bottom:1px solid var(--line)}
-.filter-disclosure summary{min-height:44px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--body);list-style:none}
-.filter-disclosure summary::before{content:"+";font-size:18px;color:var(--brand)}
-.filter-disclosure[open] summary::before{content:"−"}
-.filter-disclosure summary::-webkit-details-marker{display:none}
-.filter-disclosure[open]{padding-bottom:12px}
+/* ===== CATEGORY TABS (always visible, peekaboo-style) ===== */
+.cat-tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 16px 6px;scrollbar-width:none}
+.cat-tabs::-webkit-scrollbar{display:none}
+.cat-tab{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:8px 14px;border-radius:20px;
+  border:1px solid var(--line);background:var(--card);color:var(--body);font-size:12px;font-weight:700;
+  cursor:pointer;transition:var(--transition);white-space:nowrap}
+.cat-tab:active{transform:scale(.95)}
+.cat-tab.active{background:var(--masthead);color:#fff;border-color:var(--masthead)}
+.cat-ic{font-size:14px;line-height:1}
+.cat-lbl{letter-spacing:-.1px}
+
+/* ===== FILTER ROW (compact dropdowns) ===== */
+.filter-row{display:flex;gap:8px;padding:4px 16px 10px;overflow-x:auto;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.fr-select{flex-shrink:0;padding:8px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--body);font-size:12px;font-weight:600;font-family:inherit;
+  cursor:pointer;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.fr-select:focus{outline:none;border-color:var(--brand)}
 .filter-label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:750;margin:14px 0 8px}
-.filter-disclosure .chips,.filter-disclosure .ot-filter-row{flex-wrap:wrap;overflow:visible;padding:0;gap:6px}
-.filter-disclosure .chip,.filter-disclosure .ot-pill{min-height:44px;border-radius:8px;font-size:12px;box-shadow:none}
-.filter-disclosure select{font:inherit;font-size:14px;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);width:100%;color:var(--ink)}
-.filter-reset{min-height:44px;background:none;color:var(--brand);border:0;font:inherit;font-size:12px;font-weight:700;float:inline-end;margin-top:-44px}
 .wallet-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .wallet-panel{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:406px;z-index:39;margin:0;max-height:70vh;overflow:auto;box-shadow:var(--shadow-lg);border:2px solid var(--brand-line)}
 .wallet-panel .pay-opt{min-height:44px;font-size:13px}

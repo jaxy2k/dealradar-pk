@@ -1713,12 +1713,15 @@ function renderDiscovery() {
 }
 
 function renderChips() {
-  $("#filterSummary").textContent = `${state.city === "All" ? t("allCities") : state.city} · ${LANG === "ur" ? "فلٹرز" : "Filters"}${state.otype !== "all" || state.cat !== "all" ? " •" : ""}`;
-  $("#cityChips").innerHTML = CITIES.map(c => `<button class="chip${state.city === c ? " active" : ""}" aria-pressed="${state.city === c}" data-city="${c}">${c === "All" ? t("allCities") : c}</button>`).join("");
-  const pool = DATA.deals.filter(d => !isNews(d));
-  $("#filterControls").innerHTML = `<p class="filter-label">${LANG === "ur" ? "آفر کی قسم" : "Offer type"}</p>${typeFilterRow(pool)}
-    <label class="filter-label" for="categorySelect">${LANG === "ur" ? "زمرہ" : "Category"}</label><select id="categorySelect">${CATS.map(([k,l]) => `<option value="${k}" ${state.cat === k ? "selected" : ""}>${esc(catKey[k] ? t(catKey[k]) : l)}</option>`).join("")}</select>
-    <p class="filter-label">${LANG === "ur" ? "شہر" : "City"}</p><button class="filter-reset" id="resetFilters">${LANG === "ur" ? "فلٹرز ہٹائیں" : "Reset filters"}</button>`;
+  const catIcons = { all: "🔥", food: "🍔", shopping: "🛍️", ecommerce: "📦", retail: "🏪", fuel: "", travel: "️", telecom: "📱", grocery: "🛒", electronics: "🔌", fashion: "👗", utilities: "💡" };
+  $("#catTabs").innerHTML = CATS.map(([k, l]) =>
+    `<button class="cat-tab${state.cat === k ? " active" : ""}" data-cat="${k}" aria-pressed="${state.cat === k}">` +
+    `<span class="cat-ic">${catIcons[k] || "📁"}</span><span class="cat-lbl">${esc(catKey[k] ? t(catKey[k]) : l)}</span></button>`
+  ).join("");
+  const cityOpts = CITIES.map(c => `<option value="${c}" ${state.city === c ? "selected" : ""}>${c === "All" ? t("allCities") : c}</option>`).join("");
+  const typeOpts = [["all", LANG === "ur" ? "تمام آفرز" : "All offers"], ["percent", "% Off"], ["flat", "Rs Off"], ["cashback", "Cashback"], ["bogo", "BOGO"], ["free_delivery", "Free Delivery"]].map(([k, l]) => `<option value="${k}" ${state.otype === k ? "selected" : ""}>${l}</option>`).join("");
+  $("#filterRow").innerHTML = `<select class="fr-select" id="citySelect" aria-label="City">${cityOpts}</select>
+    <select class="fr-select" id="otypeSelect" aria-label="Offer type">${typeOpts}</select>`;
 }
 
 function renderWalletPanel() {
@@ -3480,13 +3483,15 @@ function wire() {
     if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
-  $("#filterControls").addEventListener("click", e => {
-    const type = e.target.closest("[data-otype]");
-    if (type) { state.otype = type.dataset.otype; renderChips(); renderFeed(); }
-    if (e.target.closest("#resetFilters")) { state.otype = "all"; state.cat = "all"; state.city = "All"; renderChips(); renderFeed(); }
+  $("#catTabs").addEventListener("click", e => {
+    const b = e.target.closest("[data-cat]");
+    if (!b) return;
+    state.cat = b.dataset.cat;
+    renderChips(); scheduleRender(); updateBackBtn();
   });
-  $("#filterControls").addEventListener("change", e => {
-    if (e.target.id === "categorySelect") { state.cat = e.target.value; renderChips(); renderFeed(); }
+  $("#filterRow").addEventListener("change", e => {
+    if (e.target.id === "citySelect") { state.city = e.target.value; renderChips(); scheduleRender(); updateBackBtn(); }
+    if (e.target.id === "otypeSelect") { state.otype = e.target.value; renderChips(); scheduleRender(); updateBackBtn(); }
   });
   $("#feed").addEventListener("keydown", e => {
     if ((e.key === "Enter" || e.key === " ") && e.target.matches("article[data-id]")) { e.preventDefault(); e.target.click(); }
@@ -3514,7 +3519,6 @@ function wire() {
       scheduleRender(); updateBackBtn();
     }, 250);
   });
-  $("#cityChips").addEventListener("click", e => { const b = e.target.closest("[data-city]"); if (!b) return; state.city = b.dataset.city; renderChips(); scheduleRender(); updateBackBtn(); });
   // Retry path on the fallback banner (delegated: #banner innerHTML is re-rendered freely)
   $("#banner").addEventListener("click", e => { if (e.target.closest("#retryLive")) fetchLive(); });
   $("#feed").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (!b) return; state.cat = b.dataset.cat; scheduleRender(); updateBackBtn(); });
