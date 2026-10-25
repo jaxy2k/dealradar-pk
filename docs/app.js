@@ -2302,7 +2302,10 @@ const PK_PLATFORMS = [
   { id:"gloria", name:"Gloria Jean's", segment:"restaurant", colors:["#4e342e","#5d4037"], keywords:["gloria","jean","coffee","latte"], headerText:["gloria"], format:"app" },
   { id:"starbucks", name:"Starbucks", segment:"restaurant", colors:["#00704a","#008c5e"], keywords:["starbucks","coffee","frappuccino","latte"], headerText:["starbucks"], format:"app" },
   { id:"dunkin", name:"Dunkin'", segment:"restaurant", colors:["#e11383","#ff6900"], keywords:["dunkin","donut","coffee"], headerText:["dunkin"], format:"app" },
-  { id:"chaiwala", name:"Chai Wala", segment:"restaurant", colors:["#8d6e63","#795548"], keywords:["chai wala","chai","tea"], headerText:["chai wala"], format:"app" },
+  { id:"chaiwala", name:"Chai Wala", segment:"restaurant", colors:["#8d6e63","#795548"], keywords:["chai wala"], headerText:["chai wala"], format:"app" },
+  { id:"timhortons", name:"Tim Hortons", segment:"restaurant", colors:["#c8102e","#b81c2a","#8a1420"], keywords:["tim hortons","timhortons","tims","tim horton"], headerText:["tim hortons","timhortons"], format:"app" },
+  { id:"secondcup", name:"Second Cup", segment:"restaurant", colors:["#7b1f2b","#a8323e","#5a1620"], keywords:["second cup","secondcup"], headerText:["second cup","secondcup"], format:"app" },
+  { id:"cinnabon", name:"Cinnabon", segment:"restaurant", colors:["#e4002b","#c8102e","#8a1420"], keywords:["cinnabon","cinnamon roll","chilly cinna"], headerText:["cinnabon"], format:"app" },
   { id:"secondfloor", name:"Second Floor", segment:"restaurant", colors:["#37474f","#455a64"], keywords:["second floor","cafe"], headerText:["second floor"], format:"app" },
 
   // ===== GROCERY / SUPERMARKETS =====
@@ -2544,29 +2547,48 @@ function matchByColor(colors, platforms) {
 }
 
 // Match OCR text against platform keywords (word-boundary aware)
+// Phrases that appear on essentially every deal ad or describe a category/format
+// rather than a specific brand. A match on ONLY these is weak evidence, not proof.
+const GENERIC_PHRASES = new Set([
+  "t&cs apply", "terms apply", "order now", "limited time", "limited time offers",
+  "flash deal", "flash deals", "flash sale", "free delivery", "free shipping",
+  "cashback", "discount", "voucher", "coupon", "promo", "code", "deal", "offer",
+  "delivery", "grocery", "restaurants", "restaurant", "order food",
+  "search for restaurants", "popular restaurants", "save 25%", "midnight cravings",
+  "health & beauty", "cakes & bakery", "pick-up", "carts", "coffee", "latte",
+  "tea", "donut", "wallet", "recharge", "send money", "bill payment",
+  "debit card", "credit card", "card", "fashion", "clothing", "electronics",
+  "gadget", "fresh", "mobile", "buy 1 get 1", "bogo", "min order", "maximum discount",
+]);
 function matchByText(ocrText, platforms) {
   const T = String(ocrText || "").toLowerCase();
   const results = [];
   for (const p of platforms) {
-    let hits = 0;
+    let discHits = 0; // discriminating (brand-specific) keyword hits
+    let genHits = 0;  // generic marketing/format hits
     for (const kw of p.keywords) {
       const k = kw.toLowerCase();
+      const isGeneric = GENERIC_PHRASES.has(k);
+      let hit = false;
       if (k.includes(" ") || k.length > 5) {
-        if (T.includes(k)) hits++;
+        hit = T.includes(k);
       } else {
         const re = new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-        if (re.test(T)) hits++;
+        hit = re.test(T);
       }
+      if (hit) { if (isGeneric) genHits++; else discHits++; }
     }
     // Also check headerText (brand name in header = very strong signal)
     let headerHit = false;
     for (const ht of (p.headerText || [])) {
       if (T.includes(ht.toLowerCase())) { headerHit = true; break; }
     }
-    if (hits > 0 || headerHit) {
-      let score = 1 - Math.pow(0.5, hits);
-      if (headerHit) score = Math.max(score, 0.95); // brand name found = near-certain
-      results.push({ platform: p, score, hits, headerHit });
+    if (discHits > 0 || genHits > 0 || headerHit) {
+      let score;
+      if (headerHit) score = 0.95;                    // brand name found = near-certain
+      else if (discHits > 0) score = 1 - Math.pow(0.5, discHits); // distinctive keywords
+      else score = 0.2;                               // only generic phrases = weak evidence
+      results.push({ platform: p, score, hits: discHits + genHits, discHits, headerHit });
     }
   }
   return results.sort((a, b) => b.score - a.score);
@@ -2757,6 +2779,20 @@ function parseDealText(text, ocrConfidence) {
     conf.discount_value = baseConf * 0.9;
     evidence.discount_value = `Found "${pct[0].trim()}" in text`;
   }
+  // Fallback: OCR of a big display "30% OFF" often splits the number from its
+  // symbol/word across lines ("30" on one line, "% OFF" elsewhere). A standalone
+  // 10-90 number with explicit %/off context is a percent discount (low confidence).
+  if (!fields.discount_value && /%|\boff\b|\bdiscount\b|\bsave\b|\benjoy\b/i.test(T)) {
+    for (const ln of T.split(/\n+/)) {
+      const m = ln.trim().match(/^(\d{1,2})$/);
+      if (m && +m[1] >= 10 && +m[1] <= 90) {
+        fields.discount_kind = "percent"; fields.discount_value = +m[1];
+        conf.discount_value = baseConf * 0.55;
+        evidence.discount_value = `Standalone number "${m[1]}" with %/off context (OCR split — verify)`;
+        break;
+      }
+    }
+  }
   // Flat Rs off
   const flat = T.match(/Rs\.?\s*([\d,]{2,})\s*(?:off|discount)?/i);
   if (!fields.discount_value && flat) {
@@ -2928,9 +2964,11 @@ function parseDealText(text, ocrConfidence) {
     }
   }
 
-  // Title: longest promotional line
-  const lines = T.split(/\n+/).map(s => s.trim()).filter(s => s.length > 8 && s.length < 90);
-  const promo = lines.find(l => /off|deal|discount|save|cashback|free|%|offer|voucher/i.test(l));
+  // Title: longest promotional line, excluding browser/social chrome noise.
+  const JUNK_LINE = /https?:\/\/|www\.|\.com\b|\.pk\b|\.html?\b|instagram|facebook|tiktok|twitter|whatsapp|paid partnership|\bbuy now\b|\bfollow\b|\bsubscribe\b|\blikes?\b|\bcomments?\b|\bshares?\b|\bsaved\b|\bpost\b|\bhome\b|\bsearch\b|\breels\b|\bstatus\b|^\d{1,2}[:.]\d{2}$|^[^\n]*[|·•][^\n]*$|^\W*$|^[a-z]\s/i;
+  const lines = T.split(/\n+/).map(s => s.trim())
+    .filter(s => s.length > 8 && s.length < 90 && !JUNK_LINE.test(s));
+  const promo = lines.find(l => /off|deal|discount|save|cashback|free|offer|voucher|buy|get|enjoy|upto|up to/i.test(l));
   if (promo) {
     fields.title = promo.replace(/\s+/g, " ");
     conf.title = baseConf * 0.5;
@@ -2995,6 +3033,7 @@ function openScreenshotSubmit(preDataUrl, preFile) {
       <label>Validity</label>
       <div class="f-row">
         <select name="validity_type" id="ssValidity">
+          <option value="unknown">No expiry detected — add one?</option>
           <option value="until">Ends on date</option>
           <option value="recurring">Recurring (specific days)</option>
           <option value="ongoing">Ongoing / no end date</option>
@@ -3227,8 +3266,12 @@ function openScreenshotSubmit(preDataUrl, preFile) {
         $("#ssValidity").value = "until";
         const d = new Date(f.expires_at), pad = n => String(n).padStart(2, "0");
         $("#ssExpires").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        $("#ssValidity").dispatchEvent(new Event("change"));
+      } else {
+        // No date evidence → honest "unknown" default (no fabricated expiry, no implied end date)
+        $("#ssValidity").value = "unknown";
+        $("#ssValidity").dispatchEvent(new Event("change"));
       }
-      // If validity is unknown, leave the selector at default ("until") with no date — user decides
 
       // Provider/merchant separation from structured extraction
       if (f.provider && !$("#ssProvider").value) {
@@ -3319,10 +3362,12 @@ function openScreenshotSubmit(preDataUrl, preFile) {
     });
     // Validity type toggle
     const valSel = $("#ssValidity");
-    valSel.addEventListener("change", () => {
+    const applyValidityUI = () => {
       $("#ssUntilWrap").classList.toggle("hidden", valSel.value !== "until");
       $("#ssDaysWrap").classList.toggle("hidden", valSel.value !== "recurring");
-    });
+    };
+    valSel.addEventListener("change", applyValidityUI);
+    applyValidityUI();
   }
 
   $("#ssForm").addEventListener("submit", e => {
@@ -3350,7 +3395,7 @@ function openScreenshotSubmit(preDataUrl, preFile) {
     else if (kind === "bogo") discount = { kind: "bogo", value: null };
 
     // Validity handling
-    const validityType = f.get("validity_type") || "until";
+    const validityType = f.get("validity_type") || "unknown";
     const validDays = validityType === "recurring" ? [...f.getAll("valid_day")] : null;
     const expires_at = (validityType === "until" && f.get("expires_at")) ? new Date(f.get("expires_at") + ":00+05:00").toISOString() : null;
     const isOngoing = validityType === "ongoing";

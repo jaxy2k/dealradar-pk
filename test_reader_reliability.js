@@ -36,6 +36,7 @@ const parseDealTextSrc = js.match(/function parseDealText\(text, ocrConfidence\)
 const matchByColorSrc = js.match(/function matchByColor\(colors, platforms\)[\s\S]*?\n\}/);
 const colorDistSrc = js.match(/function colorDist\(c1, c2\)[\s\S]*?\n\}/);
 const normMerchantSrc = js.match(/function normMerchant\(s\)[\s\S]*?\n\}/);
+const genericPhrasesSrc = js.match(/const GENERIC_PHRASES = new Set\([\s\S]*?\]\);/);
 
 // Extract PK_PLATFORMS array
 const pkPlatStart = js.indexOf("const PK_PLATFORMS = [");
@@ -45,6 +46,7 @@ const pkPlatSrc = js.slice(pkPlatStart, pkPlatEnd);
 // Build the sandbox code
 const sandboxCode = `
 ${normMerchantSrc ? normMerchantSrc[0] : ""}
+${genericPhrasesSrc ? genericPhrasesSrc[0] : ""}
 ${pkPlatSrc}
 ${funcExtract ? funcExtract[0] : ""}
 ${colorDistSrc ? colorDistSrc[0] : ""}
@@ -261,6 +263,41 @@ const cityResult = parseDealText("Karachi only: 30% off at all restaurants", 0.8
 assert(cityResult.fields.city === "Karachi", "City 'Karachi' detected");
 const nationwideResult = parseDealText("Nationwide offer: 15% off everywhere", 0.8);
 assert(nationwideResult.fields.city === "All Pakistan", "'Nationwide' → All Pakistan");
+
+// ---- 15. Real-world Tim Hortons + Easypaisa screenshot fixtures ----
+console.log("\n--- 15. Real-world screenshot defects ---");
+// The exact OCR text pattern from the Instagram Tim Hortons/Easypaisa post:
+// big "30% OFF" split across lines, browser chrome, "T&CS APPLY", mangled brand.
+const realOcr = [
+  "1:32", "A % instagram.com/dis", "dw", "discountworld_dw Follow",
+  "Paid partnership", "ENJOY", "30", "% OFF", "WITH easypaisa DEBIT CARDS",
+  "AT Tim Hortons", "T&CS APPLY", "551", "8", "5",
+].join("\n");
+const real = parseDealText(realOcr, 0.6);
+assert(real.fields.discount_value === 30, "Split '30' + '% OFF' still detected as 30% discount");
+assert(real.fields.provider === "Easypaisa", "Easypaisa detected as provider from real OCR");
+assert(real.fields.merchant === "Tim Hortons", "Tim Hortons detected as merchant (in dictionary now)");
+assert(!/instagram\.com|\.com|Paid partnership/i.test(real.fields.title || ""), "Title excludes browser/social chrome");
+
+// Generic marketing phrase alone must NOT identify a brand
+const genericOnly = matchByText("T&CS APPLY order now limited time offers", pkPlatforms());
+const fp = genericOnly.find(m => m.platform.id === "foodpanda");
+assert(!fp || fp.score <= 0.2, "'t&cs apply' alone does not strongly match Foodpanda");
+const fpCombined = fp ? fp.score * 0.65 : 0;
+assert(fpCombined < 0.15, "Generic-only Foodpanda text falls below 0.15 suggestion threshold");
+
+// Tim Hortons / Second Cup / Cinnabon now present
+assert(pkPlatforms().some(p => p.id === "timhortons"), "Tim Hortons in PK platforms");
+assert(pkPlatforms().some(p => p.id === "secondcup"), "Second Cup in PK platforms");
+assert(pkPlatforms().some(p => p.id === "cinnabon"), "Cinnabon in PK platforms");
+// Clean Tim Hortons text matches by brand name (headerHit)
+const thMatch = matchByText("Enjoy at Tim Hortons this week", pkPlatforms());
+assert(thMatch[0] && thMatch[0].platform.id === "timhortons" && thMatch[0].score >= 0.9, "Clean 'Tim Hortons' text matches strongly");
+
+// Unknown validity → no fabricated expiry, no implied end date
+const unk = parseDealText("Enjoy 30% OFF with easypaisa debit cards", 0.6);
+assert(unk.fields.expires_at === null, "Real ad (no date) → no expiry");
+assert(unk.fields.validity_type === "unknown", "Real ad (no date) → validity_type 'unknown'");
 
 console.log(`\n==== ${passed} passed, ${failed} failed ====\n`);
 process.exit(failed > 0 ? 1 : 0);
