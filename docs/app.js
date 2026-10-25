@@ -2171,7 +2171,7 @@ function applyVerification(d, typeKey) {
 
 const PK_PLATFORMS = [
   // ===== Q-COMMERCE / FOOD DELIVERY =====
-  { id:"foodpanda", name:"Foodpanda", segment:"qcommerce", colors:["#d70f64","#e91e8c","#c2185b","#f06292"], keywords:["pandamart","panda pro","search for restaurants","popular restaurants","carts","pick-up","order now","t&cs apply","save 25%","flash deals","limited time offers","grocery","health & beauty","cakes & bakery"], headerText:["foodpanda","panda"], format:"app" },
+  { id:"foodpanda", name:"Foodpanda", segment:"qcommerce", colors:["#d70f64","#e91e8c","#c2185b","#f06292"], keywords:["pandamart","panda pro","dmart","search for restaurants","popular restaurants","carts","pick-up","order now","t&cs apply","save 25%","flash deals","limited time offers","grocery","health & beauty","cakes & bakery","midnight cravings"], headerText:["foodpanda","panda","pandamart"], format:"app" },
   { id:"careem", name:"Careem", segment:"qcommerce", colors:["#00a94f","#00b359","#009944"], keywords:["careem","quik","careem quik","grocery","delivery","order food","restaurants"], headerText:["careem","quik"], format:"app" },
   { id:"bykea", name:"Bykea", segment:"qcommerce", colors:["#ffd600","#f5c400","#ffeb3b"], keywords:["bykea","ride","delivery","parcel"], headerText:["bykea"], format:"app" },
   { id:"keeta", name:"Keeta", segment:"qcommerce", colors:["#ff6b00","#ff8c00"], keywords:["keeta","food delivery"], headerText:["keeta"], format:"app" },
@@ -2940,7 +2940,9 @@ function openScreenshotSubmit(preDataUrl, preFile) {
       }
 
       // Pre-fill deal fields from OCR
-      $("#ssTitle").value = f.title || "";
+      // Clean OCR garbage from title (leading single chars, numbers, UI noise)
+      let cleanTitle = (f.title || "").replace(/^[a-z]\s+\d+\s+/i, "").replace(/^\d+\s+/, "").trim();
+      $("#ssTitle").value = cleanTitle;
       $("#ssKind").value = f.discount_kind || "none";
       $("#ssValue").value = f.discount_value != null ? f.discount_value : "";
       $("#ssCode").value = f.code || "";
@@ -2952,6 +2954,21 @@ function openScreenshotSubmit(preDataUrl, preFile) {
       if (f.brand && !$("#ssProvider").value) {
         $("#ssProvider").value = f.brand;
         $("#ssProvider").dispatchEvent(new Event("input"));
+      }
+      // Title-based bank override: if title mentions a specific bank different from OCR brand, prefer title
+      if (cleanTitle.length > 5) {
+        const titleBankMatch = matchByText(cleanTitle, PK_PLATFORMS.filter(p => p.segment === "bank" || p.segment === "ewallet"));
+        if (titleBankMatch.length > 0 && titleBankMatch[0].score > 0.5) {
+          const titleBank = titleBankMatch[0].platform;
+          const currentProv = $("#ssProvider").value.trim().toLowerCase();
+          if (currentProv && normMerchant(currentProv) !== titleBank.id && normMerchant(currentProv) !== normMerchant(titleBank.name)) {
+            $("#ssProvider").value = titleBank.name;
+            $("#ssProvider").dispatchEvent(new Event("input"));
+          } else if (!currentProv) {
+            $("#ssProvider").value = titleBank.name;
+            $("#ssProvider").dispatchEvent(new Event("input"));
+          }
+        }
       }
       // Warn about uncertain fields
       const c = ocrOut.conf || {};
